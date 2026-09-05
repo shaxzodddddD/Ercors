@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+passlib
+python-jose[cryptography]
+python-multipart
+pdfplumber
+python-docx
+httpx
+python-dotenv
+psycopg2-binary
