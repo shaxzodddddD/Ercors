@@ -310,7 +310,8 @@
       </nav>
 
       <main id="main-dash">
-        <div class="page-header flex flex-wrap items-center justify-between gap-3 mb-4">
+        <!-- Dashboard main content (page header) -->
+        <div class="page-header flex flex-wrap items-center justify-between gap-3 mb-4" id="dashboard-main">
           <div><h1 class="neon-text-dash flex items-center gap-2"><span class="pulse-dot"></span>AI‑Vetted Talent, <span class="shimmer-text">Zero Friction</span></h1><p class="text-gray-400 text-sm">64 live services – from talent matching to quantum computing</p></div>
           <div class="flex gap-2 flex-wrap"><button onclick="openRegisterModal('company')" class="btn-dash-primary"><i class="fas fa-building"></i> Company</button><button onclick="openRegisterModal('expert')" class="btn-dash-secondary"><i class="fas fa-user-tie"></i> Expert</button></div>
         </div>
@@ -424,7 +425,7 @@
           </div>
         </section>
 
-        <!-- ===== HR / CV SCREENING SECTION ===== -->
+        <!-- HR / CV Screening -->
         <section id="hr-section" class="mb-8">
           <div class="flex items-center gap-2 mb-3">
             <i class="fas fa-file-pdf text-[#f87171] text-lg"></i>
@@ -449,6 +450,26 @@
           </div>
         </section>
 
+        <!-- ===== NEW: MODULE DETAIL SECTION ===== -->
+        <section id="module-detail-section" class="mb-8" style="display:none;">
+          <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-cube text-[#00f0ff] text-lg"></i>
+            <h2 class="text-lg font-bold text-white">Module Detail</h2>
+          </div>
+          <div class="glass-card-dark rounded-xl p-6">
+            <button onclick="closeModuleDetail()" class="btn-dash-secondary mb-4"><i class="fas fa-arrow-left"></i> Back</button>
+            <div id="module-detail-content">
+              <h3 class="text-2xl font-bold text-white" id="module-detail-name">Module Name</h3>
+              <p class="text-gray-400 text-sm mt-1" id="module-detail-category">Category</p>
+              <p class="text-gray-300 mt-4" id="module-detail-description">Description not available.</p>
+              <div class="mt-4 flex gap-2">
+                <span class="badge badge-open" id="module-detail-status">Active</span>
+                <span class="text-xs text-gray-500" id="module-detail-id">ID: m1</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <footer class="pt-4 border-t border-[rgba(0,240,255,0.03)] text-center text-[0.55rem] text-gray-600 flex items-center justify-center gap-3 flex-wrap">
           <span><i class="fas fa-lock text-[#00f0ff]/20 mr-1"></i> ERCORS — AGI &amp; Enterprise</span>
           <span>·</span>
@@ -461,7 +482,8 @@
   </div>
 </div>
 
-<!-- ===== MODALS (login, register, profile) ===== -->
+<!-- ===== MODALS ===== -->
+<!-- (modallar avvalgidek, o‘zgarishsiz) -->
 <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop" onclick="if(event.target===this) closeLoginModal()">
   <div class="bg-white rounded-2xl max-w-md w-full p-7 relative shadow-2xl">
     <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700"><i class="fas fa-times text-lg"></i></button>
@@ -536,7 +558,13 @@ function showDashboard() {
   loadModules(); loadTalents(); renderRanking(); loadCampaigns(); loadPosts(); loadEscrows(); updateUI();
   setTimeout(() => init3DAvatar(currentUser ? currentUser.full_name : 'User'), 500);
 }
-function showSection(id) { const el = document.getElementById(id); if(el) el.scrollIntoView({ behavior: 'smooth' }); }
+function showSection(id) {
+  // Hide all sections (including module detail)
+  document.getElementById('module-detail-section').style.display = 'none';
+  // Show the requested section (scroll to it)
+  const el = document.getElementById(id);
+  if(el) el.scrollIntoView({ behavior: 'smooth' });
+}
 
 // Dual Tab
 function switchTab(tab) {
@@ -594,7 +622,7 @@ function renderSidebar(modules) {
   for(const [cat, items] of Object.entries(cats)) {
     html += '<div class="module-category">'+cat+'</div>';
     items.forEach(mod => {
-      html += `<div class="module-item" onclick="window.location.href='/module/${mod.id}'">
+      html += `<div class="module-item" onclick="showModuleDetail('${mod.id}')">
         <span class="icon"><i class="fas ${mod.icon || 'fa-cube'}"></i></span>
         <span class="name">${mod.name}</span>
         <span class="badge badge-open">●</span>
@@ -602,6 +630,36 @@ function renderSidebar(modules) {
     });
   }
   container.innerHTML = html;
+}
+
+// ─── MODULE DETAIL ──────────────────────────────────────
+function showModuleDetail(moduleId) {
+  const mod = modulesData.find(m => m.id === moduleId);
+  if(!mod) { alert('Module not found'); return; }
+  // Hide all normal sections
+  document.querySelectorAll('#main-dash > section:not(#module-detail-section)').forEach(el => el.style.display = 'none');
+  // Hide stats and page header
+  document.querySelector('.page-header').style.display = 'none';
+  document.querySelector('.grid.grid-cols-2.md\\:grid-cols-4.gap-3.mb-6').style.display = 'none';
+  // Show module detail section
+  const detailSection = document.getElementById('module-detail-section');
+  detailSection.style.display = 'block';
+  // Fill data
+  document.getElementById('module-detail-name').textContent = mod.name;
+  document.getElementById('module-detail-category').textContent = mod.category || 'General';
+  document.getElementById('module-detail-description').textContent = mod.description || 'No description available for this module.';
+  document.getElementById('module-detail-status').textContent = mod.active ? 'Active' : 'Inactive';
+  document.getElementById('module-detail-status').className = mod.active ? 'badge badge-open' : 'badge badge-locked';
+  document.getElementById('module-detail-id').textContent = 'ID: '+mod.id;
+  detailSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeModuleDetail() {
+  document.getElementById('module-detail-section').style.display = 'none';
+  // Show all normal sections
+  document.querySelectorAll('#main-dash > section:not(#module-detail-section)').forEach(el => el.style.display = 'block');
+  document.querySelector('.page-header').style.display = 'flex';
+  document.querySelector('.grid.grid-cols-2.md\\:grid-cols-4.gap-3.mb-6').style.display = 'grid';
 }
 
 // ─── TALENTS ──────────────────────────────────────────────
@@ -881,7 +939,6 @@ async function uploadCV(e) {
     const data = await res.json();
     if (data.status === 'success') {
       msg.innerHTML = `<span class="text-green-400">✅ CV uploaded and analyzed! Matched to ${data.campaigns_matched} campaigns.</span>`;
-      // Analysis
       const analysis = data.analysis || {};
       document.getElementById('cv-analysis').innerHTML = `
         <h4 class="text-white font-semibold">📋 Analysis</h4>
@@ -890,7 +947,6 @@ async function uploadCV(e) {
         <p><span class="text-gray-400">Current Role:</span> ${analysis.current_position || 'N/A'}</p>
         <p><span class="text-gray-400">Summary:</span> ${analysis.summary || 'N/A'}</p>
       `;
-      // Matches
       if (data.campaigns_matched > 0) {
         const matchRes = await fetch(`/api/candidates/${data.candidate_id}/match`);
         const matchData = await matchRes.json();
@@ -1147,6 +1203,8 @@ window.uploadCV = uploadCV;
 window.generateBadge = generateBadge;
 window.init3DAvatar = init3DAvatar;
 window.switchTab = switchTab;
+window.showModuleDetail = showModuleDetail;
+window.closeModuleDetail = closeModuleDetail;
 </script>
 
 </body>
