@@ -31,11 +31,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("ERCORS_MAIN")
 
 # ─── Config ──────────────────────────────────────────────
-GROQ_API_KEY_1 = os.getenv("GROQ_API_KEY_1")
-GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2")
-GROQ_API_KEY_3 = os.getenv("GROQ_API_KEY_3")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-DATABASE_URL = os.getenv("DATABASE_URL")  # Render PostgreSQL URL
+GROQ_API_KEY_1=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
+GROQ_API_KEY_2=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
+GROQ_API_KEY_3=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
+GROQ_MODEL=llama-3.3-70b-versatile
 if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./ercors_platform.db"  # fallback (local)
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-me")
