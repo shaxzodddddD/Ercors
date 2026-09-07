@@ -1,8 +1,3 @@
-# ============================================================
-#  main.py – ERCORS AGI Platform v9.2 (Render-ready)
-#  PostgreSQL, 3 Groq API, HR AI CV tahlil & auto-matching
-# ============================================================
-
 import os, json, re, asyncio, logging, uuid, io
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Depends, UploadFile, File
@@ -15,14 +10,12 @@ from datetime import datetime, timedelta
 import httpx
 import uvicorn
 
-# ─── Database ─────────────────────────────────────────────
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Float, ForeignKey, JSON
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from sqlalchemy.sql import func
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 
-# ─── PDF / DOCX extraction ──────────────────────────────
 import pdfplumber
 from docx import Document
 
@@ -31,20 +24,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("ERCORS_MAIN")
 
 # ─── Config ──────────────────────────────────────────────
-GROQ_API_KEY_1=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
-GROQ_API_KEY_2=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
-GROQ_API_KEY_3=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
-GROQ_MODEL=llama-3.3-70b-versatile
-if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./ercors_platform.db"  # fallback (local)
+GROQ_API_KEY_1 = os.getenv("GROQ_API_KEY_1")
+GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2")
+GROQ_API_KEY_3 = os.getenv("GROQ_API_KEY_3")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ercors_platform.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "10485760"))
-PORT = int(os.getenv("PORT", 10000))  # Render port
+PORT = int(os.getenv("PORT", 10000))
 
-# ─── Database engine ──────────────────────────────────────
+# ─── Database ─────────────────────────────────────────────
 connect_args = {}
 if "sqlite" in DATABASE_URL:
     connect_args = {"check_same_thread": False}
@@ -52,7 +44,6 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 
-# ─── Password and JWT ────────────────────────────────────
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -128,6 +119,7 @@ class Candidate(Base):
     source = Column(String(50), default="manual")
     status = Column(String(20), default="new")
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
+    module_id = Column(String(20), nullable=True)  # qaysi modulga yuklangan
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     owner = relationship("User", back_populates="candidates")
@@ -232,7 +224,7 @@ class Escrow(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# ─── 64 MODULES (to‘liq) ──────────────────────────────────
+# ─── 64 Modules (to‘liq ro‘yxat) ──────────────────────────
 MODULES = [
     {"id": "m1", "name": "Enterprise AI Talent Matching", "category": "Core", "icon": "fa-users", "active": True},
     {"id": "m2", "name": "Managed RLHF & Data Annotation", "category": "Core", "icon": "fa-robot", "active": True},
@@ -310,7 +302,7 @@ TALENTS = [
 ]
 
 # ─── FastAPI app ─────────────────────────────────────────
-app = FastAPI(title="ERCORS AGI Platform", version="9.2")
+app = FastAPI(title="ERCORS AGI Platform", version="9.3")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -321,7 +313,8 @@ class GroqLoadBalancer:
         self.keys = [GROQ_API_KEY_1, GROQ_API_KEY_2, GROQ_API_KEY_3]
         self.keys = [k for k in self.keys if k]
         if not self.keys:
-            raise Exception("Groq API kalitlari topilmadi!")
+            logger.warning("⚠️ Groq API kalitlari topilmadi! AI funksiyalar ishlamaydi.")
+            self.keys = ["dummy"]  # fallback
         self.current_index = 0
         self.model = GROQ_MODEL
         self.failed_keys = set()
@@ -338,6 +331,8 @@ class GroqLoadBalancer:
             return key
 
     async def chat_completion(self, messages, temperature=0.7, max_tokens=2048):
+        if not self.keys or self.keys == ["dummy"]:
+            raise Exception("Groq API kalitlari mavjud emas")
         tried = set()
         for _ in range(len(self.keys)):
             key = await self.get_next_key()
@@ -365,9 +360,13 @@ class GroqLoadBalancer:
 groq = GroqLoadBalancer()
 
 async def call_groq(system: str, user: str, temp: float = 0.7) -> str:
-    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    result = await groq.chat_completion(messages, temperature=temp, max_tokens=2048)
-    return result["choices"][0]["message"]["content"]
+    try:
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        result = await groq.chat_completion(messages, temperature=temp, max_tokens=2048)
+        return result["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error(f"Groq call failed: {e}")
+        return "{}"  # fallback JSON
 
 # ─── Matn chiqarish ──────────────────────────────────────
 def extract_text_from_file(file_bytes: bytes, filename: str) -> str:
@@ -461,81 +460,40 @@ def calculate_match_score(candidate_analysis: Dict, campaign: Campaign) -> float
 # ─── AUTH ──────────────────────────────────────────────────
 @app.post("/api/register")
 async def register(
-        full_name: str = Form(...),
-        email: str = Form(...),
-        password: str = Form(...),
-        user_type: str = Form(...),
-        company_name: str = Form(None),
-        skills: str = Form(None),
-        hourly_rate: str = Form(None),
-        db: Session = Depends(get_db)
-):
-    existing = db.query(User).filter(User.email == email).first()
-    if existing:
+        full_name: str = Form(...), email: str = Form(...), password: str = Form(...),
+        user_type: str = Form(...), company_name: str = Form(None), skills: str = Form(None),
+        hourly_rate: str = Form(None), db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == email).first():
         raise HTTPException(400, "Bu email allaqachon ro‘yxatdan o‘tgan")
     hashed = hash_password(password)
-    new_user = User(
-        full_name=full_name,
-        email=email,
-        hashed_password=hashed,
-        user_type=user_type,
-        company_name=company_name,
-        skills=skills,
-        hourly_rate=hourly_rate,
-        trust_score=85
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    new_user = User(full_name=full_name, email=email, hashed_password=hashed, user_type=user_type,
+                    company_name=company_name, skills=skills, hourly_rate=hourly_rate, trust_score=85)
+    db.add(new_user); db.commit(); db.refresh(new_user)
     token = create_access_token({"sub": str(new_user.id)})
-    return JSONResponse({
-        "status": "success",
-        "message": "Ro‘yxatdan o‘tdingiz!",
-        "user": {
-            "id": new_user.id,
-            "full_name": new_user.full_name,
-            "email": new_user.email,
-            "user_type": new_user.user_type,
-            "company_name": new_user.company_name,
-            "trust_score": new_user.trust_score
-        },
-        "session": token
-    })
+    return JSONResponse({"status":"success","message":"Ro‘yxatdan o‘tdingiz!","user":{
+        "id":new_user.id,"full_name":new_user.full_name,"email":new_user.email,
+        "user_type":new_user.user_type,"company_name":new_user.company_name,"trust_score":new_user.trust_score
+    },"session":token})
 
 @app.post("/api/login")
 async def login(email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(401, "Email yoki parol noto‘g‘ri")
-    user.last_login = func.now()
-    db.commit()
+    user.last_login = func.now(); db.commit()
     token = create_access_token({"sub": str(user.id)})
-    return JSONResponse({
-        "status": "success",
-        "user": {
-            "id": user.id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "user_type": user.user_type,
-            "company_name": user.company_name,
-            "trust_score": user.trust_score
-        },
-        "session": token
-    })
+    return JSONResponse({"status":"success","user":{
+        "id":user.id,"full_name":user.full_name,"email":user.email,
+        "user_type":user.user_type,"company_name":user.company_name,"trust_score":user.trust_score
+    },"session":token})
 
 @app.get("/api/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return JSONResponse({
-        "id": current_user.id,
-        "full_name": current_user.full_name,
-        "email": current_user.email,
-        "user_type": current_user.user_type,
-        "company_name": current_user.company_name,
-        "skills": current_user.skills,
-        "hourly_rate": current_user.hourly_rate,
-        "trust_score": current_user.trust_score,
-        "projects": current_user.projects,
-        "earnings": current_user.earnings
+        "id":current_user.id,"full_name":current_user.full_name,"email":current_user.email,
+        "user_type":current_user.user_type,"company_name":current_user.company_name,
+        "skills":current_user.skills,"hourly_rate":current_user.hourly_rate,
+        "trust_score":current_user.trust_score,"projects":current_user.projects,"earnings":current_user.earnings
     })
 
 @app.get("/api/users")
@@ -544,13 +502,9 @@ async def get_all_users(db: Session = Depends(get_db), current_user: User = Depe
         raise HTTPException(403, "Faqat kompaniya adminlari ko‘ra oladi")
     users = db.query(User).all()
     return JSONResponse([{
-        "id": u.id,
-        "full_name": u.full_name,
-        "email": u.email,
-        "user_type": u.user_type,
-        "company_name": u.company_name,
-        "trust_score": u.trust_score,
-        "registered_at": u.registered_at.isoformat() if u.registered_at else None
+        "id":u.id,"full_name":u.full_name,"email":u.email,
+        "user_type":u.user_type,"company_name":u.company_name,
+        "trust_score":u.trust_score,"registered_at":u.registered_at.isoformat() if u.registered_at else None
     } for u in users])
 
 # ─── MODULES & TALENTS ──────────────────────────────────
@@ -572,46 +526,22 @@ async def get_talents():
 # ─── CAMPAIGNS ────────────────────────────────────────────
 @app.post("/api/campaigns")
 async def create_campaign(
-        title: str = Form(...),
-        description: str = Form(...),
-        required_skills: Optional[str] = Form(None),
-        min_experience: Optional[float] = Form(None),
-        keywords: Optional[str] = Form(None),
-        budget: str = Form(...),
-        deadline: str = Form(...),
-        company_id: int = Form(...),
-        db: Session = Depends(get_db)
-):
+        title: str = Form(...), description: str = Form(...),
+        required_skills: Optional[str] = Form(None), min_experience: Optional[float] = Form(None),
+        keywords: Optional[str] = Form(None), budget: str = Form(...), deadline: str = Form(...),
+        company_id: int = Form(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == company_id).first()
-    if not user:
-        raise HTTPException(404, "Company not found")
-    new_campaign = Campaign(
-        user_id=company_id,
-        name=title,
-        description=description,
-        required_skills=required_skills,
-        min_experience=min_experience,
-        keywords=keywords,
-        status="Open"
-    )
-    db.add(new_campaign)
-    db.commit()
-    db.refresh(new_campaign)
-    return JSONResponse({
-        "status": "success",
-        "campaign": {
-            "id": new_campaign.id,
-            "title": new_campaign.name,
-            "description": new_campaign.description,
-            "required_skills": new_campaign.required_skills,
-            "min_experience": new_campaign.min_experience,
-            "keywords": new_campaign.keywords,
-            "budget": budget,
-            "deadline": deadline,
-            "company_name": user.company_name or user.full_name,
-            "status": new_campaign.status
-        }
-    })
+    if not user: raise HTTPException(404, "Company not found")
+    new_campaign = Campaign(user_id=company_id, name=title, description=description,
+                            required_skills=required_skills, min_experience=min_experience,
+                            keywords=keywords, status="Open")
+    db.add(new_campaign); db.commit(); db.refresh(new_campaign)
+    return JSONResponse({"status":"success","campaign":{
+        "id":new_campaign.id,"title":new_campaign.name,"description":new_campaign.description,
+        "required_skills":new_campaign.required_skills,"min_experience":new_campaign.min_experience,
+        "keywords":new_campaign.keywords,"budget":budget,"deadline":deadline,
+        "company_name":user.company_name or user.full_name,"status":new_campaign.status
+    }})
 
 @app.get("/api/campaigns")
 async def get_campaigns(db: Session = Depends(get_db)):
@@ -620,25 +550,19 @@ async def get_campaigns(db: Session = Depends(get_db)):
     for c in campaigns:
         user = db.query(User).filter(User.id == c.user_id).first()
         result.append({
-            "id": c.id,
-            "title": c.name,
-            "description": c.description,
-            "required_skills": c.required_skills,
-            "min_experience": c.min_experience,
-            "keywords": c.keywords,
-            "budget": "Custom",
-            "deadline": c.created_at.strftime("%Y-%m-%d") if c.created_at else "N/A",
-            "company_name": user.company_name or user.full_name if user else "Unknown",
-            "status": c.status,
-            "created_at": c.created_at.isoformat() if c.created_at else None
+            "id":c.id,"title":c.name,"description":c.description,
+            "required_skills":c.required_skills,"min_experience":c.min_experience,
+            "keywords":c.keywords,"budget":"Custom",
+            "deadline":c.created_at.strftime("%Y-%m-%d") if c.created_at else "N/A",
+            "company_name":user.company_name or user.full_name if user else "Unknown",
+            "status":c.status,"created_at":c.created_at.isoformat() if c.created_at else None
         })
     return JSONResponse(result)
 
 @app.get("/api/campaigns/{campaign_id}/candidates")
 async def get_campaign_candidates(campaign_id: int, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(404, "Campaign not found")
+    if not campaign: raise HTTPException(404, "Campaign not found")
     candidates = db.query(Candidate).filter(Candidate.campaign_id == campaign_id).all()
     result = []
     for c in candidates:
@@ -647,37 +571,24 @@ async def get_campaign_candidates(campaign_id: int, db: Session = Depends(get_db
             Application.campaign_id == campaign_id
         ).first()
         result.append({
-            "id": c.id,
-            "full_name": c.full_name,
-            "email": c.email,
-            "skills": c.skills,
-            "experience_years": c.experience_years,
-            "match_score": app.match_score if app else None,
-            "status": c.status
+            "id":c.id,"full_name":c.full_name,"email":c.email,
+            "skills":c.skills,"experience_years":c.experience_years,
+            "match_score":app.match_score if app else None,"status":c.status
         })
     return JSONResponse(result)
 
-# ─── SOCIAL FEED ──────────────────────────────────────────
+# ─── POSTS ─────────────────────────────────────────────────
 @app.post("/api/posts")
 async def create_post(content: str = Form(...), user_id: int = Form(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(404, "User not found")
+    if not user: raise HTTPException(404, "User not found")
     new_post = Post(user_id=user_id, content=content, likes=0)
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    return JSONResponse({
-        "status": "success",
-        "post": {
-            "id": new_post.id,
-            "content": new_post.content,
-            "user_name": user.full_name,
-            "created_at": new_post.created_at.isoformat() if new_post.created_at else None,
-            "likes": 0,
-            "comments": []
-        }
-    })
+    db.add(new_post); db.commit(); db.refresh(new_post)
+    return JSONResponse({"status":"success","post":{
+        "id":new_post.id,"content":new_post.content,"user_name":user.full_name,
+        "created_at":new_post.created_at.isoformat() if new_post.created_at else None,
+        "likes":0,"comments":[]
+    }})
 
 @app.get("/api/posts")
 async def get_posts(db: Session = Depends(get_db)):
@@ -687,36 +598,28 @@ async def get_posts(db: Session = Depends(get_db)):
         user = db.query(User).filter(User.id == p.user_id).first()
         comments = db.query(Comment).filter(Comment.post_id == p.id).all()
         result.append({
-            "id": p.id,
-            "content": p.content,
-            "user_name": user.full_name if user else "Unknown",
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-            "likes": p.likes,
-            "comments": [{"user_id": c.user_id, "text": c.text} for c in comments]
+            "id":p.id,"content":p.content,"user_name":user.full_name if user else "Unknown",
+            "created_at":p.created_at.isoformat() if p.created_at else None,
+            "likes":p.likes,"comments":[{"user_id":c.user_id,"text":c.text} for c in comments]
         })
     return JSONResponse(result)
 
 @app.post("/api/posts/{post_id}/like")
 async def like_post(post_id: int, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
-    if not post:
-        raise HTTPException(404, "Post not found")
-    post.likes += 1
-    db.commit()
-    return JSONResponse({"status": "success", "likes": post.likes})
+    if not post: raise HTTPException(404, "Post not found")
+    post.likes += 1; db.commit()
+    return JSONResponse({"status":"success","likes":post.likes})
 
 @app.post("/api/posts/{post_id}/comment")
 async def comment_post(post_id: int, user_id: int = Form(...), text: str = Form(...), db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
-    if not post:
-        raise HTTPException(404, "Post not found")
+    if not post: raise HTTPException(404, "Post not found")
     user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(404, "User not found")
+    if not user: raise HTTPException(404, "User not found")
     new_comment = Comment(post_id=post_id, user_id=user_id, text=text)
-    db.add(new_comment)
-    db.commit()
-    return JSONResponse({"status": "success", "comment": {"user_id": user_id, "text": text}})
+    db.add(new_comment); db.commit()
+    return JSONResponse({"status":"success","comment":{"user_id":user_id,"text":text}})
 
 # ─── AI CHAT ──────────────────────────────────────────────
 @app.post("/api/v1/ai/chat")
@@ -724,119 +627,67 @@ async def ai_chat(message: str = Form(...), user_id: Optional[int] = Form(None))
     try:
         system = "You are ERCORS AI, an expert assistant for AI talent management and enterprise solutions. Answer concisely and helpfully."
         result = await call_groq(system, message, 0.7)
-        return JSONResponse({"status": "success", "response": result})
+        return JSONResponse({"status":"success","response":result})
     except Exception as e:
         logger.exception("AI chat failed")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+        return JSONResponse({"status":"error","message":str(e)}, status_code=500)
 
 # ─── MASS EMAIL ────────────────────────────────────────────
 @app.post("/api/v1/admin/send-mass-email")
 async def send_mass_email(subject: str = Form(...), template_type: str = Form(...),
                           target_users: List[str] = Form(...)):
     logger.info(f"Mass email: subject={subject}, template={template_type}, recipients={len(target_users)}")
-    return JSONResponse({
-        "status": "success",
-        "message": f"{len(target_users)} ta foydalanuvchiga xabar yuborish navbatga qo'shildi."
-    })
+    return JSONResponse({"status":"success","message":f"{len(target_users)} ta foydalanuvchiga xabar yuborish navbatga qo'shildi."})
 
 # ─── HARVESTER ─────────────────────────────────────────────
 @app.post("/api/v1/harvester/start")
-async def start_harvester(language: str = Form("python"), min_stars: int = Form(50), min_followers: int = Form(20),
-                          limit: int = Form(10)):
-    return JSONResponse({
-        "status": "RUNNING",
-        "message": f"Harvester started for {language} (min_stars={min_stars}, limit={limit})"
-    })
+async def start_harvester(language: str = Form("python"), min_stars: int = Form(50),
+                          min_followers: int = Form(20), limit: int = Form(10)):
+    return JSONResponse({"status":"RUNNING","message":f"Harvester started for {language} (min_stars={min_stars}, limit={limit})"})
 
 # ─── NEGOTIATOR ────────────────────────────────────────────
 @app.post("/api/v1/negotiate/contract")
-async def negotiate_contract(
-        company_name: str = Form(...),
-        developer_name: str = Form(...),
-        project_scope: str = Form(...),
-        budget_range: str = Form(...)
-):
+async def negotiate_contract(company_name: str = Form(...), developer_name: str = Form(...),
+                             project_scope: str = Form(...), budget_range: str = Form(...)):
     try:
         system = "You are a B2B AI negotiator. Return JSON: {budget, deadline, terms, accepted}"
         user = f"Company: {company_name}\nDeveloper: {developer_name}\nProject: {project_scope}\nBudget: {budget_range}"
         result = await call_groq(system, user, 0.3)
         json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result)
-        if json_match:
-            result = json_match.group(1)
+        if json_match: result = json_match.group(1)
         data = json.loads(result)
-        return JSONResponse({"status": "success", "negotiation": data})
+        return JSONResponse({"status":"success","negotiation":data})
     except Exception:
-        return JSONResponse({
-            "status": "success",
-            "negotiation": {
-                "budget": 15000,
-                "deadline": "2026-12-31",
-                "terms": "Standard NDA + Escrow",
-                "accepted": True
-            }
-        })
+        return JSONResponse({"status":"success","negotiation":{"budget":15000,"deadline":"2026-12-31","terms":"Standard NDA + Escrow","accepted":True}})
 
 # ─── HR INTERVIEW ──────────────────────────────────────────
 interview_sessions = {}
-
 @app.post("/api/v1/ai/interview/start")
 async def start_interview(module_id: str = Form(...), user_id: int = Form(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(404, "User not found")
+    if not user: raise HTTPException(404, "User not found")
     module = next((m for m in MODULES if m["id"] == module_id), None)
-    if not module:
-        raise HTTPException(404, "Module not found")
+    if not module: raise HTTPException(404, "Module not found")
     try:
         system = "You are an AI HR interviewer. Generate 5 interview questions as JSON array."
         prompt = f"Generate 5 interview questions for role: {module['name']}. Description: {module['description']}"
         result = await call_groq(system, prompt, 0.7)
         json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result)
-        if json_match:
-            result = json_match.group(1)
+        if json_match: result = json_match.group(1)
         questions = json.loads(result)
         if not isinstance(questions, list) or len(questions) != 5:
-            questions = [
-                "Tell me about yourself and your relevant experience.",
-                "Why are you interested in this role?",
-                "Describe a challenging project you worked on.",
-                "How do you stay updated with industry trends?",
-                "Where do you see yourself in 5 years?"
-            ]
+            questions = ["Tell me about yourself...","Why are you interested?","Describe a challenge...","How do you stay updated?","Where do you see yourself in 5 years?"]
     except:
-        questions = [
-            "Tell me about yourself and your relevant experience.",
-            "Why are you interested in this role?",
-            "Describe a challenging project you worked on.",
-            "How do you stay updated with industry trends?",
-            "Where do you see yourself in 5 years?"
-        ]
+        questions = ["Tell me about yourself...","Why are you interested?","Describe a challenge...","How do you stay updated?","Where do you see yourself in 5 years?"]
     session_id = str(uuid.uuid4())
-    interview_sessions[session_id] = {
-        "user_id": user_id,
-        "module_id": module_id,
-        "questions": questions,
-        "answers": [],
-        "current_index": 0,
-        "status": "in_progress",
-        "score": None,
-        "recommendation": None,
-        "feedback": None
-    }
-    return JSONResponse({
-        "status": "success",
-        "session_id": session_id,
-        "question": questions[0],
-        "total_questions": len(questions)
-    })
+    interview_sessions[session_id] = {"user_id":user_id,"module_id":module_id,"questions":questions,"answers":[],"current_index":0,"status":"in_progress","score":None,"recommendation":None,"feedback":None}
+    return JSONResponse({"status":"success","session_id":session_id,"question":questions[0],"total_questions":len(questions)})
 
 @app.post("/api/v1/ai/interview/answer")
 async def answer_interview(session_id: str = Form(...), answer: str = Form(...)):
     session = interview_sessions.get(session_id)
-    if not session:
-        raise HTTPException(404, "Session not found")
-    if session["status"] != "in_progress":
-        raise HTTPException(400, "Interview already completed")
+    if not session: raise HTTPException(404, "Session not found")
+    if session["status"] != "in_progress": raise HTTPException(400, "Interview already completed")
     session["answers"].append(answer)
     session["current_index"] += 1
     if session["current_index"] >= len(session["questions"]):
@@ -845,45 +696,27 @@ async def answer_interview(session_id: str = Form(...), answer: str = Form(...))
             prompt = f"Questions: {session['questions']}\nAnswers: {session['answers']}"
             result = await call_groq(system, prompt, 0.5)
             json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result)
-            if json_match:
-                result = json_match.group(1)
+            if json_match: result = json_match.group(1)
             eval_data = json.loads(result)
         except:
-            eval_data = {"score": 75, "recommendation": "Interview", "feedback": "Good technical knowledge."}
-        session["score"] = eval_data.get("score", 75)
-        session["recommendation"] = eval_data.get("recommendation", "Interview")
-        session["feedback"] = eval_data.get("feedback", "No feedback.")
+            eval_data = {"score":75,"recommendation":"Interview","feedback":"Good technical knowledge."}
+        session["score"] = eval_data.get("score",75)
+        session["recommendation"] = eval_data.get("recommendation","Interview")
+        session["feedback"] = eval_data.get("feedback","No feedback.")
         session["status"] = "completed"
-        return JSONResponse({
-            "status": "completed",
-            "score": session["score"],
-            "recommendation": session["recommendation"],
-            "feedback": session["feedback"],
-            "session_id": session_id
-        })
+        return JSONResponse({"status":"completed","score":session["score"],"recommendation":session["recommendation"],"feedback":session["feedback"],"session_id":session_id})
     else:
-        return JSONResponse({
-            "status": "in_progress",
-            "question": session["questions"][session["current_index"]],
-            "progress": f"{session['current_index']}/{len(session['questions'])}"
-        })
+        return JSONResponse({"status":"in_progress","question":session["questions"][session["current_index"]],"progress":f"{session['current_index']}/{len(session['questions'])}"})
 
 @app.get("/api/v1/ai/interview/status/{session_id}")
 async def get_interview_status(session_id: str):
     session = interview_sessions.get(session_id)
-    if not session:
-        raise HTTPException(404, "Session not found")
-    return JSONResponse({
-        "status": "success",
-        "session": {
-            "module_id": session["module_id"],
-            "status": session["status"],
-            "score": session.get("score"),
-            "recommendation": session.get("recommendation"),
-            "feedback": session.get("feedback"),
-            "answers": session["answers"]
-        }
-    })
+    if not session: raise HTTPException(404, "Session not found")
+    return JSONResponse({"status":"success","session":{
+        "module_id":session["module_id"],"status":session["status"],
+        "score":session.get("score"),"recommendation":session.get("recommendation"),
+        "feedback":session.get("feedback"),"answers":session["answers"]
+    }})
 
 # ─── CV SCREENING ──────────────────────────────────────────
 @app.post("/api/v1/hr/screen-cv-text")
@@ -893,20 +726,11 @@ async def screen_cv_text(resume_text: str = Form(...), job_description: str = Fo
         user = f"CV:\n{resume_text}\n\nJob:\n{job_description}"
         result = await call_groq(system, user, 0.3)
         json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result)
-        if json_match:
-            result = json_match.group(1)
+        if json_match: result = json_match.group(1)
         data = json.loads(result)
-        return JSONResponse({"status": "success", "analysis": data})
+        return JSONResponse({"status":"success","analysis":data})
     except Exception:
-        return JSONResponse({
-            "status": "success",
-            "analysis": {
-                "score": 75,
-                "strengths": ["Python", "AI", "Leadership"],
-                "weaknesses": ["Cloud", "DevOps"],
-                "recommendation": "Interview"
-            }
-        })
+        return JSONResponse({"status":"success","analysis":{"score":75,"strengths":["Python","AI","Leadership"],"weaknesses":["Cloud","DevOps"],"recommendation":"Interview"}})
 
 # ─── GENERATE QUESTIONS ────────────────────────────────────
 @app.post("/api/v1/hr/generate-questions")
@@ -916,70 +740,47 @@ async def generate_questions(position: str = Form(...), seniority: str = Form(..
         user = f"Generate questions for {seniority} {position}."
         result = await call_groq(system, user, 0.7)
         json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result)
-        if json_match:
-            result = json_match.group(1)
+        if json_match: result = json_match.group(1)
         data = json.loads(result)
-        return JSONResponse({"status": "success", "questions": data})
+        return JSONResponse({"status":"success","questions":data})
     except:
-        return JSONResponse({
-            "status": "success",
-            "questions": {
-                "technical": ["Explain OOP", "Write a sorting algorithm", "Explain REST API", "What is CI/CD?", "Explain microservices"],
-                "situational": ["Tell me about a challenge", "How do you handle conflict?", "Describe a successful project"]
-            }
-        })
+        return JSONResponse({"status":"success","questions":{"technical":["Explain OOP","Write a sorting algorithm","Explain REST API","What is CI/CD?","Explain microservices"],"situational":["Tell me about a challenge","How do you handle conflict?","Describe a successful project"]}})
 
 # ─── GENERATE EMAIL ────────────────────────────────────────
 @app.post("/api/v1/hr/generate-email")
-async def generate_email(
-        candidate_name: str = Form(...),
-        position: str = Form(...),
-        company_name: str = Form(...),
-        email_type: str = Form(...),
-        feedback: Optional[str] = Form(None)
-):
+async def generate_email(candidate_name: str = Form(...), position: str = Form(...),
+                         company_name: str = Form(...), email_type: str = Form(...),
+                         feedback: Optional[str] = Form(None)):
     try:
         type_text = "offer" if email_type == "offer" else "rejection"
         system = f"Write a professional {type_text} email. Return only email content."
         user = f"Candidate: {candidate_name}\nPosition: {position}\nCompany: {company_name}\nFeedback: {feedback or 'N/A'}"
         result = await call_groq(system, user, 0.5)
-        return JSONResponse({"status": "success", "email": result.strip()})
+        return JSONResponse({"status":"success","email":result.strip()})
     except:
-        return JSONResponse({
-            "status": "success",
-            "email": f"Dear {candidate_name},\n\nWe are pleased to inform you that we are moving forward with your application for the {position} position at {company_name}.\n\nBest regards,\nHR Team"
-        })
+        return JSONResponse({"status":"success","email":f"Dear {candidate_name},\n\nWe are pleased to inform you that we are moving forward with your application for the {position} position at {company_name}.\n\nBest regards,\nHR Team"})
 
 # ─── CV YUKLASH VA AVTOMATIK YO‘NALTIRISH ──────────────
 @app.post("/api/upload-cv")
 async def upload_cv(
         file: UploadFile = File(...),
         user_id: Optional[int] = Form(None),
-        db: Session = Depends(get_db)
-):
-    # 1. Faylni tekshirish va saqlash
-    if not file.filename.lower().endswith(('.pdf', '.docx', '.txt')):
+        module_id: Optional[str] = Form(None),
+        db: Session = Depends(get_db)):
+    if not file.filename.lower().endswith(('.pdf','.docx','.txt')):
         raise HTTPException(400, "Faqat PDF, DOCX yoki TXT ruxsat")
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(400, f"Fayl hajmi {MAX_FILE_SIZE // 1024 // 1024} MB dan oshmasligi kerak")
-
+        raise HTTPException(400, f"Fayl hajmi {MAX_FILE_SIZE//1024//1024} MB dan oshmasligi kerak")
     filename = f"{uuid.uuid4().hex}_{file.filename}"
     filepath = os.path.join(UPLOAD_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(content)
-
-    # 2. Matnni chiqarish
+    with open(filepath, "wb") as f: f.write(content)
     try:
         resume_text = extract_text_from_file(content, file.filename)
     except Exception as e:
         raise HTTPException(400, f"Matn chiqarishda xatolik: {str(e)}")
-
-    # 3. AI tahlil
     analysis = await analyze_cv_with_ai(resume_text)
-
-    # 4. Nomzod yaratish
-    full_name = analysis.get("current_position", file.filename.replace('.txt', '').replace('_', ' '))
+    full_name = analysis.get("current_position", file.filename.replace('.txt','').replace('_',' '))
     new_candidate = Candidate(
         user_id=user_id,
         full_name=full_name,
@@ -990,13 +791,10 @@ async def upload_cv(
         experience_years=analysis.get("experience_years", 0),
         current_position=analysis.get("current_position", ""),
         source="upload",
-        status="new"
+        status="new",
+        module_id=module_id
     )
-    db.add(new_candidate)
-    db.commit()
-    db.refresh(new_candidate)
-
-    # 5. Faol kampaniyalar bilan moslik
+    db.add(new_candidate); db.commit(); db.refresh(new_candidate)
     campaigns = db.query(Campaign).filter(Campaign.status == "Open").all()
     applications_created = 0
     for camp in campaigns:
@@ -1010,27 +808,22 @@ async def upload_cv(
                 ai_feedback=f"Avtomatik moslik: {score}%",
                 status="review"
             )
-            db.add(app)
-            applications_created += 1
+            db.add(app); applications_created += 1
     db.commit()
-
     return JSONResponse({
-        "status": "success",
-        "candidate_id": new_candidate.id,
-        "file_path": f"/uploads/{filename}",
-        "analysis": analysis,
-        "campaigns_matched": applications_created
+        "status":"success",
+        "candidate_id":new_candidate.id,
+        "file_path":f"/uploads/{filename}",
+        "analysis":analysis,
+        "campaigns_matched":applications_created
     })
 
 # ─── NOMZODNING BARCHA KAMPANIYALARGA MOSLIGI ──────────
 @app.get("/api/candidates/{candidate_id}/match")
 async def get_candidate_matches(candidate_id: int, db: Session = Depends(get_db)):
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-    if not candidate:
-        raise HTTPException(404, "Candidate not found")
-    if not candidate.resume_analysis:
-        raise HTTPException(400, "CV hali tahlil qilinmagan")
-
+    if not candidate: raise HTTPException(404, "Candidate not found")
+    if not candidate.resume_analysis: raise HTTPException(400, "CV hali tahlil qilinmagan")
     campaigns = db.query(Campaign).filter(Campaign.status == "Open").all()
     matches = []
     for camp in campaigns:
@@ -1043,31 +836,19 @@ async def get_candidate_matches(candidate_id: int, db: Session = Depends(get_db)
             "min_experience": camp.min_experience
         })
     matches.sort(key=lambda x: x["match_score"], reverse=True)
-    return JSONResponse({
-        "candidate_id": candidate_id,
-        "matches": matches
-    })
+    return JSONResponse({"candidate_id": candidate_id, "matches": matches})
 
 # ─── ESCROW ────────────────────────────────────────────────
 @app.get("/api/escrow")
 async def get_escrows(db: Session = Depends(get_db)):
     escrows = db.query(Escrow).all()
-    return JSONResponse([{
-        "id": e.id,
-        "title": e.title,
-        "amount": e.amount,
-        "status": e.status,
-        "created_at": e.created_at.isoformat() if e.created_at else None
-    } for e in escrows])
+    return JSONResponse([{"id":e.id,"title":e.title,"amount":e.amount,"status":e.status,"created_at":e.created_at.isoformat() if e.created_at else None} for e in escrows])
 
 @app.post("/api/escrow")
 async def create_escrow(title: str = Form(...), amount: float = Form(...), db: Session = Depends(get_db)):
     new_escrow = Escrow(title=title, amount=amount, status="pending")
-    db.add(new_escrow)
-    db.commit()
-    db.refresh(new_escrow)
-    return JSONResponse(
-        {"status": "success", "escrow": {"id": new_escrow.id, "title": new_escrow.title, "amount": new_escrow.amount}})
+    db.add(new_escrow); db.commit(); db.refresh(new_escrow)
+    return JSONResponse({"status":"success","escrow":{"id":new_escrow.id,"title":new_escrow.title,"amount":new_escrow.amount}})
 
 # ─── BADGE ──────────────────────────────────────────────────
 @app.get("/api/v1/badge/{user_id}.svg")
@@ -1087,16 +868,16 @@ async def get_badge(user_id: str):
         <text x="140" y="14" fill="#030712">Verified</text>
       </g>
     </svg>"""
-    return Response(content=svg, media_type="image/svg+xml", headers={"Cache-Control": "no-cache"})
+    return Response(content=svg, media_type="image/svg+xml", headers={"Cache-Control":"no-cache"})
 
 # ─── HEALTH ──────────────────────────────────────────────
 @app.get("/health")
 async def health():
     return JSONResponse({
-        "status": "healthy",
-        "version": "9.2",
-        "modules": len(MODULES),
-        "groq_keys": len(groq.keys)
+        "status":"healthy",
+        "version":"9.3",
+        "modules":len(MODULES),
+        "groq_keys":len([k for k in groq.keys if k != "dummy"])
     })
 
 # ─── ROOT ──────────────────────────────────────────────────
@@ -1110,9 +891,8 @@ async def root():
 
 # ─── RUN ──────────────────────────────────────────────────
 if __name__ == "__main__":
-    print(f"🚀 ERCORS AGI Platform v9.2 starting on port {PORT}...")
+    print(f"🚀 ERCORS AGI Platform v9.3 starting on port {PORT}...")
     print(f"📦 {len(MODULES)} modules loaded")
-    print(f"🔑 Groq keys: {len(groq.keys)}")
+    print(f"🔑 Groq keys: {len([k for k in groq.keys if k != 'dummy'])}")
     print(f"🗄️  Database: {DATABASE_URL}")
-    print(f"🔗 API: http://0.0.0.0:{PORT}")
     uvicorn.run(app, host="0.0.0.0", port=PORT)
