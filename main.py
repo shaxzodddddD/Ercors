@@ -1,7 +1,7 @@
-import os, json, re, asyncio, logging, uuid, io
+import os, json, re, asyncio, logging, uuid, io, base64
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Depends, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
@@ -33,7 +33,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
-MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "10485760"))
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10 MB
 PORT = int(os.getenv("PORT", 10000))
 
 # ─── Database ─────────────────────────────────────────────
@@ -80,7 +80,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     return user
 
-# ─── SQLAlchemy Models ──────────────────────────────────
+# ─── SQLAlchemy Models (avvalgidek) ──────────────────────
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -119,7 +119,7 @@ class Candidate(Base):
     source = Column(String(50), default="manual")
     status = Column(String(20), default="new")
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
-    module_id = Column(String(20), nullable=True)  # qaysi modulga yuklangan
+    module_id = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     owner = relationship("User", back_populates="candidates")
@@ -224,7 +224,7 @@ class Escrow(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# ─── 64 Modules (to‘liq ro‘yxat) ──────────────────────────
+# ─── 64 Modules (to‘liq, avvalgidek) ──────────────────────
 MODULES = [
     {"id": "m1", "name": "Enterprise AI Talent Matching", "category": "Core", "icon": "fa-users", "active": True},
     {"id": "m2", "name": "Managed RLHF & Data Annotation", "category": "Core", "icon": "fa-robot", "active": True},
@@ -292,7 +292,6 @@ MODULES = [
     {"id": "m64", "name": "AI Governance & Compliance", "category": "Developer Tools", "icon": "fa-gavel", "active": True},
 ]
 
-# ─── TALENTS ──────────────────────────────────────────────
 TALENTS = [
     {"id": 1, "name": "Alice Johnson", "skills": "Python, PyTorch, LLM, FastAPI", "title": "Senior AI Engineer", "trust_score": 99.2},
     {"id": 2, "name": "Bob Smith", "skills": "Rust, C++, Quantum, ZK Proofs", "title": "Systems Architect", "trust_score": 98.7},
@@ -302,7 +301,7 @@ TALENTS = [
 ]
 
 # ─── FastAPI app ─────────────────────────────────────────
-app = FastAPI(title="ERCORS AGI Platform", version="9.3")
+app = FastAPI(title="ERCORS AGI Platform", version="9.4")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -314,7 +313,7 @@ class GroqLoadBalancer:
         self.keys = [k for k in self.keys if k]
         if not self.keys:
             logger.warning("⚠️ Groq API kalitlari topilmadi! AI funksiyalar ishlamaydi.")
-            self.keys = ["dummy"]  # fallback
+            self.keys = ["dummy"]
         self.current_index = 0
         self.model = GROQ_MODEL
         self.failed_keys = set()
@@ -366,9 +365,61 @@ async def call_groq(system: str, user: str, temp: float = 0.7) -> str:
         return result["choices"][0]["message"]["content"]
     except Exception as e:
         logger.error(f"Groq call failed: {e}")
-        return "{}"  # fallback JSON
+        return "{}"
 
-# ─── Matn chiqarish ──────────────────────────────────────
+# ─── Groq Audio Transcribe ──────────────────────────────
+async def groq_audio_transcribe(file_bytes: bytes, filename: str, language: str = "en") -> str:
+    """
+    Audio faylni Groq Whisper API orqali matnga aylantiradi.
+    """
+    if not groq.keys or groq.keys == ["dummy"]:
+        raise Exception("Groq API kalitlari mavjud emas")
+    # Eng yaxshi kalitni olish
+    key = await groq.get_next_key()
+    url = "https://api.groq.com/openai/v1/audio/transcriptions"
+    headers = {"Authorization": f"Bearer {key}"}
+    # Multipart form-data
+    files = {
+        "file": (filename, file_bytes, "audio/mpeg"),
+        "model": (None, "whisper-large-v3"),
+        "language": (None, language),
+        "response_format": (None, "json"),
+        "temperature": (None, "0.0")
+    }
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(url, headers=headers, files=files)
+    if resp.status_code == 429:
+        groq.failed_keys.add(key)
+        raise Exception("Groq API rate limit")
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("text", "")
+
+# ─── Groq TTS ────────────────────────────────────────────
+async def groq_text_to_speech(text: str, voice: str = "Fritz-PlayAI", response_format: str = "wav") -> bytes:
+    """
+    Matnni ovozga aylantiradi (TTS).
+    """
+    if not groq.keys or groq.keys == ["dummy"]:
+        raise Exception("Groq API kalitlari mavjud emas")
+    key = await groq.get_next_key()
+    url = "https://api.groq.com/openai/v1/audio/speech"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    payload = {
+        "model": "playai-tts",
+        "input": text,
+        "voice": voice,
+        "response_format": response_format
+    }
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(url, json=payload, headers=headers)
+    if resp.status_code == 429:
+        groq.failed_keys.add(key)
+        raise Exception("Groq API rate limit")
+    resp.raise_for_status()
+    return resp.content
+
+# ─── Matn chiqarish (PDF, DOCX, TXT) ──────────────────────
 def extract_text_from_file(file_bytes: bytes, filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
     text = ""
@@ -415,13 +466,7 @@ async def analyze_cv_with_ai(resume_text: str) -> Dict[str, Any]:
         return data
     except Exception as e:
         logger.error(f"AI tahlilida xatolik: {e}")
-        return {
-            "skills": [],
-            "experience_years": 0.0,
-            "current_position": "Unknown",
-            "education": "Unknown",
-            "summary": "No analysis available"
-        }
+        return {"skills": [], "experience_years": 0.0, "current_position": "Unknown", "education": "Unknown", "summary": "No analysis available"}
 
 # ─── Moslikni hisoblash ──────────────────────────────────
 def calculate_match_score(candidate_analysis: Dict, campaign: Campaign) -> float:
@@ -457,7 +502,7 @@ def calculate_match_score(candidate_analysis: Dict, campaign: Campaign) -> float
 
     return min(100, round(score, 1))
 
-# ─── AUTH ──────────────────────────────────────────────────
+# ─── AUTH ENDPOINTS ──────────────────────────────────────
 @app.post("/api/register")
 async def register(
         full_name: str = Form(...), email: str = Form(...), password: str = Form(...),
@@ -760,7 +805,7 @@ async def generate_email(candidate_name: str = Form(...), position: str = Form(.
     except:
         return JSONResponse({"status":"success","email":f"Dear {candidate_name},\n\nWe are pleased to inform you that we are moving forward with your application for the {position} position at {company_name}.\n\nBest regards,\nHR Team"})
 
-# ─── CV YUKLASH VA AVTOMATIK YO‘NALTIRISH ──────────────
+# ─── CV YUKLASH ──────────────────────────────────────────
 @app.post("/api/upload-cv")
 async def upload_cv(
         file: UploadFile = File(...),
@@ -875,10 +920,189 @@ async def get_badge(user_id: str):
 async def health():
     return JSONResponse({
         "status":"healthy",
-        "version":"9.3",
+        "version":"9.4",
         "modules":len(MODULES),
         "groq_keys":len([k for k in groq.keys if k != "dummy"])
     })
+
+# =============================================================
+# 🎤 YANGI: HR REAL VAQTDA OVOZLI TAHLLL VA SUHBAT
+# =============================================================
+
+# ─── 1. Audio transkripsiya (ovozni matnga aylantirish) ──
+@app.post("/api/v1/hr/audio/transcribe")
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    language: str = Form("en"),
+    db: Session = Depends(get_db)
+):
+    """
+    Audio faylni (MP3, WAV, M4A va boshqalar) matnga aylantiradi.
+    """
+    if not file.filename.lower().endswith(('.mp3','.wav','.m4a','.ogg','.webm','.flac')):
+        raise HTTPException(400, "Faqat audio fayllar ruxsat: mp3, wav, m4a, ogg, webm, flac")
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(400, f"Fayl hajmi {MAX_FILE_SIZE//1024//1024} MB dan oshmasligi kerak")
+    try:
+        text = await groq_audio_transcribe(content, file.filename, language)
+        # Natijani saqlash (ixtiyoriy) – candidate yoki alohida jadvalga yozish mumkin
+        return JSONResponse({
+            "status": "success",
+            "transcription": text,
+            "language": language,
+            "filename": file.filename
+        })
+    except Exception as e:
+        logger.error(f"Transkripsiya xatosi: {e}")
+        raise HTTPException(500, f"Transkripsiya muvaffaqiyatsiz: {str(e)}")
+
+# ─── 2. Audio suhbatni tahlil qilish (transkripsiya + AI tahlil) ──
+@app.post("/api/v1/hr/audio/analyze-interview")
+async def analyze_audio_interview(
+    file: UploadFile = File(...),
+    position: str = Form(""),
+    language: str = Form("en"),
+    db: Session = Depends(get_db)
+):
+    """
+    Audio faylni transkripsiya qiladi va shu matn asosida nomzod suhbatini tahlil qiladi.
+    Qaytariladigan maʼlumotlar: transkripsiya, umumiy xulosa, kuchli/zaif tomonlar, moslik balli.
+    """
+    if not file.filename.lower().endswith(('.mp3','.wav','.m4a','.ogg','.webm','.flac')):
+        raise HTTPException(400, "Faqat audio fayllar ruxsat")
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(400, f"Fayl hajmi {MAX_FILE_SIZE//1024//1024} MB dan oshmasligi kerak")
+    try:
+        # 1. Transkripsiya
+        transcript = await groq_audio_transcribe(content, file.filename, language)
+        if not transcript.strip():
+            raise HTTPException(400, "Transkripsiya bo‘sh, audio tushunarsiz yoki noto‘g‘ri format.")
+
+        # 2. AI yordamida tahlil
+        system_prompt = """You are an expert HR interviewer. Analyze the interview transcript and return JSON:
+        {
+            "summary": "brief overall impression",
+            "strengths": ["list of strengths"],
+            "weaknesses": ["list of weaknesses"],
+            "match_score": number (0-100),
+            "recommendation": "Hire / Interview again / Reject"
+        }"""
+        user_prompt = f"Position: {position or 'Not specified'}\n\nTranscript:\n{transcript[:4000]}"
+        result = await call_groq(system_prompt, user_prompt, 0.4)
+        # JSON ni ajratib olish
+        json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result)
+        if json_match:
+            result = json_match.group(1)
+        analysis = json.loads(result)
+
+        # 3. Agar pozitsiya berilgan bo‘lsa, kampaniyalar bilan moslikni hisoblash (ixtiyoriy)
+        campaigns_matched = 0
+        if position:
+            campaigns = db.query(Campaign).filter(Campaign.status == "Open").all()
+            # mock analysis – transkripsiyadan ko‘nikmalarni chiqarish uchun oddiy funksiya yozish mumkin
+            skills = []
+            for word in ["python", "machine learning", "ai", "react", "node", "sql", "cloud", "devops", "leadership"]:
+                if word.lower() in transcript.lower():
+                    skills.append(word.capitalize())
+            if not skills:
+                skills = ["Communication", "Problem-solving"]
+            mock_analysis = {"skills": skills, "experience_years": 3, "summary": transcript[:200]}
+            for camp in campaigns:
+                score = calculate_match_score(mock_analysis, camp)
+                if score >= 50:
+                    campaigns_matched += 1
+
+        return JSONResponse({
+            "status": "success",
+            "transcription": transcript,
+            "analysis": analysis,
+            "campaigns_matched": campaigns_matched,
+            "filename": file.filename
+        })
+    except json.JSONDecodeError:
+        return JSONResponse({
+            "status": "error",
+            "message": "AI tahlil natijasi noto‘g‘ri formatda",
+            "raw_response": result if 'result' in locals() else "No response"
+        }, status_code=500)
+    except Exception as e:
+        logger.error(f"Audio intervyu tahlilida xatolik: {e}")
+        raise HTTPException(500, f"Tahlil muvaffaqiyatsiz: {str(e)}")
+
+# ─── 3. Matnni ovozga aylantirish (TTS) ──────────────────
+@app.post("/api/v1/hr/audio/speech")
+async def text_to_speech(
+    text: str = Form(...),
+    voice: str = Form("Fritz-PlayAI"),
+    response_format: str = Form("wav")
+):
+    """
+    Matnni ovozli faylga aylantiradi. Qaytadi: audio fayl (WAV, MP3 va h.k.)
+    """
+    if not text.strip():
+        raise HTTPException(400, "Matn bo‘sh bo‘lishi mumkin emas")
+    try:
+        audio_bytes = await groq_text_to_speech(text, voice, response_format)
+        # StreamingResponse orqali fayl qaytariladi
+        return Response(
+            content=audio_bytes,
+            media_type=f"audio/{response_format}",
+            headers={"Content-Disposition": f"attachment; filename=speech.{response_format}"}
+        )
+    except Exception as e:
+        logger.error(f"TTS xatosi: {e}")
+        raise HTTPException(500, f"Ovoz yaratish muvaffaqiyatsiz: {str(e)}")
+
+# ─── 4. Ovozli suhbatni to‘liq boshqarish (demo) ──────────
+@app.post("/api/v1/hr/audio/full-interview")
+async def full_audio_interview(
+    file: UploadFile = File(...),
+    position: str = Form(""),
+    language: str = Form("en"),
+    db: Session = Depends(get_db)
+):
+    """
+    Audio faylni transkripsiya qiladi, tahlil qiladi va natijaga AI tomonidan yaratilgan
+    ovozli javobni (TTS) ham qo‘shib qaytaradi. (Katta hajmli bo‘lishi mumkin)
+    """
+    # Avval tahlil qilamiz
+    analyze_result = await analyze_audio_interview(file, position, language, db)
+    if analyze_result.status_code != 200:
+        return analyze_result
+    data = analyze_result.body
+    try:
+        body = json.loads(data)
+    except:
+        return analyze_result
+
+    # TTS uchun xulosa matnini olamiz
+    summary = body.get("analysis", {}).get("summary", "Suhbat tahlil qilindi.")
+    if len(summary) > 300:
+        summary = summary[:300] + "..."
+    # Ovoz yaratamiz
+    try:
+        audio_bytes = await groq_text_to_speech(summary, "Fritz-PlayAI", "wav")
+        # Javobda ikkalasini ham qaytaramiz – transkripsiya, tahlil va audio (base64)
+        audio_b64 = base64.b64encode(audio_bytes).decode('utf-8')
+        return JSONResponse({
+            "status": "success",
+            "transcription": body.get("transcription"),
+            "analysis": body.get("analysis"),
+            "campaigns_matched": body.get("campaigns_matched"),
+            "audio_summary_base64": audio_b64,
+            "audio_format": "wav"
+        })
+    except Exception as e:
+        # TTS ishlamasa, faqat tahlil natijasini qaytaramiz
+        return JSONResponse({
+            "status": "partial_success",
+            "transcription": body.get("transcription"),
+            "analysis": body.get("analysis"),
+            "campaigns_matched": body.get("campaigns_matched"),
+            "audio_error": str(e)
+        })
 
 # ─── ROOT ──────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
@@ -889,10 +1113,10 @@ async def root():
     except FileNotFoundError:
         return HTMLResponse("<h1>index.html topilmadi</h1>", status_code=404)
 
-# ─── RUN ──────────────────────────────────────────────────
 if __name__ == "__main__":
-    print(f"🚀 ERCORS AGI Platform v9.3 starting on port {PORT}...")
+    print(f"🚀 ERCORS AGI Platform v9.4 starting on port {PORT}...")
     print(f"📦 {len(MODULES)} modules loaded")
     print(f"🔑 Groq keys: {len([k for k in groq.keys if k != 'dummy'])}")
     print(f"🗄️  Database: {DATABASE_URL}")
+    print("🎤 HR Audio endpoints: /api/v1/hr/audio/transcribe, /analyze-interview, /speech, /full-interview")
     uvicorn.run(app, host="0.0.0.0", port=PORT)
