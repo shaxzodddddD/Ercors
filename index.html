@@ -9,171 +9,63 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Inter',system-ui,sans-serif; background:#f8fafc; color:#0f172a; min-height:100vh; overflow-x:hidden; }
-    ::-webkit-scrollbar { width:8px; }
-    ::-webkit-scrollbar-track { background:rgba(3,7,18,0.05); }
-    ::-webkit-scrollbar-thumb { background:linear-gradient(180deg,#00f0ff,#0099cc); border-radius:10px; }
-
-    .container { max-width:1200px; margin:0 auto; padding:0 1.5rem; }
-    .section-title { font-size:2.2rem; font-weight:800; margin-bottom:1.5rem; letter-spacing:-0.02em; }
-    .section-title span { background:linear-gradient(135deg,#00f0ff,#22d3ee); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .text-gradient { background:linear-gradient(135deg,#00f0ff,#22d3ee,#67e8f9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .glass { background:rgba(255,255,255,0.7); backdrop-filter:blur(12px); border:1px solid rgba(0,0,0,0.05); }
-    .glass-dark { background:rgba(3,7,18,0.6); backdrop-filter:blur(16px); border:1px solid rgba(0,240,255,0.06); }
-    .glass-dark-strong { background:rgba(3,7,18,0.75); backdrop-filter:blur(20px); border:1px solid rgba(0,240,255,0.08); }
-    .glass-card { background:rgba(255,255,255,0.5); backdrop-filter:blur(10px); border:1px solid rgba(0,0,0,0.04); border-radius:20px; transition:all 0.3s ease; }
-    .glass-card:hover { transform:translateY(-4px); box-shadow:0 20px 60px rgba(0,0,0,0.06); border-color:rgba(0,240,255,0.15); }
-    .glass-card-dark { background:rgba(3,7,18,0.4); backdrop-filter:blur(10px); border:1px solid rgba(0,240,255,0.05); border-radius:16px; transition:all 0.35s ease; }
-    .glass-card-dark:hover { border-color:rgba(0,240,255,0.2); transform:translateY(-2px); box-shadow:0 12px 48px rgba(0,240,255,0.04); }
-
-    .btn-primary { background:linear-gradient(135deg,#00f0ff,#0099cc); color:#030712; font-weight:700; padding:0.75rem 2rem; border-radius:14px; transition:all 0.3s ease; border:none; display:inline-flex; align-items:center; gap:0.6rem; box-shadow:0 4px 20px rgba(0,240,255,0.25); font-size:1rem; cursor:pointer; }
-    .btn-primary:hover { transform:translateY(-3px); box-shadow:0 8px 40px rgba(0,240,255,0.35); }
-    .btn-secondary { background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.2); color:#00aacc; padding:0.75rem 2rem; border-radius:14px; font-weight:600; transition:all 0.25s ease; cursor:pointer; font-size:1rem; }
-    .btn-secondary:hover { background:rgba(0,240,255,0.15); transform:translateY(-2px); }
-    .btn-dash-primary { background:linear-gradient(135deg,#00f0ff,#0099cc); color:#030712; font-weight:700; padding:0.5rem 1.25rem; border-radius:12px; transition:all 0.3s ease; border:none; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.5rem; cursor:pointer; box-shadow:0 4px 20px rgba(0,240,255,0.15); }
-    .btn-dash-primary:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,240,255,0.25); }
-    .btn-dash-secondary { background:rgba(0,240,255,0.04); border:1px solid rgba(0,240,255,0.08); color:#00f0ff; padding:0.4rem 1rem; border-radius:10px; font-weight:600; font-size:0.7rem; transition:all 0.25s ease; cursor:pointer; }
-    .btn-dash-secondary:hover { background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.2); }
-
-    .tab-btn { padding:0.5rem 2rem; border-radius:100px; font-weight:600; transition:all 0.25s ease; cursor:pointer; border:2px solid transparent; background:rgba(255,255,255,0.05); color:#94a3b8; }
-    .tab-btn.active { background:#00f0ff; color:#030712; border-color:#00f0ff; box-shadow:0 0 30px rgba(0,240,255,0.2); }
-    .tab-btn:hover { color:#fff; }
-
-    .lang-switcher { display:flex; gap:0.4rem; flex-wrap:wrap; }
-    .lang-switcher button { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#94a3b8; padding:0.2rem 0.6rem; border-radius:6px; font-size:0.65rem; cursor:pointer; transition:all 0.2s; }
-    .lang-switcher button.active { background:#00f0ff; color:#030712; border-color:#00f0ff; }
-    .lang-switcher button:hover { background:rgba(0,240,255,0.1); }
-
-    #landing { background:#ffffff; color:#0f172a; }
-    #landing .navbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; padding:1.2rem 0; border-bottom:1px solid rgba(0,0,0,0.05); }
-    #landing .navbar .logo-wrap { display:flex; align-items:center; gap:0.5rem; }
-    #landing .navbar .nav-actions { display:flex; gap:0.8rem; flex-wrap:wrap; align-items:center; }
-    .hero-gradient { background:radial-gradient(ellipse at 30% 20%, rgba(0,240,255,0.08) 0%, transparent 70%), radial-gradient(ellipse at 70% 80%, rgba(0,180,216,0.05) 0%, transparent 70%); }
-    .step-card { background:#f1f5f9; border-radius:20px; padding:1.8rem; transition:all 0.3s ease; border-left:4px solid #00f0ff; }
-    .step-card:hover { background:#e2e8f0; transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,0.04); }
-    .stat-number { font-size:3rem; font-weight:900; background:linear-gradient(135deg,#00f0ff,#22d3ee); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .dual-tab-content { display:none; }
-    .dual-tab-content.active { display:block; animation:fadeUp 0.5s ease; }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    .metric-counter { font-size:2.5rem; font-weight:800; color:#00f0ff; }
-
-    .hero-cta-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.8rem; margin-top:1.5rem; }
-    .hero-cta-grid .btn-primary { font-size:0.8rem; padding:0.5rem 1rem; text-align:center; justify-content:center; }
-
-    #dashboard { background:#030712; color:#e5e7eb; display:none; min-height:100vh; }
-    .neon-text-dash { background:linear-gradient(135deg,#00f0ff,#22d3ee,#67e8f9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .shimmer-text { background:linear-gradient(90deg,#00f0ff,#22d3ee,#67e8f9,#00f0ff); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:shimmer 4s linear infinite; }
-    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-    @keyframes pulse-glow { 0%,100%{opacity:0.6} 50%{opacity:1} }
-    .pulse-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#00f0ff; animation:pulse-glow 2s ease-in-out infinite; margin-right:0.4rem; }
-
-    #sidebar { width:290px; min-width:290px; height:100vh; position:sticky; top:0; overflow-y:auto; padding:1rem 0.75rem 1.5rem; border-right:1px solid rgba(0,240,255,0.04); background:rgba(3,7,18,0.88); backdrop-filter:blur(16px); display:flex; flex-direction:column; z-index:10; }
-    #sidebar .logo { display:flex; align-items:center; gap:0.75rem; padding:0 0.5rem 1rem; border-bottom:1px solid rgba(0,240,255,0.04); }
-    #sidebar .logo-badge { font-size:0.45rem; font-weight:700; background:linear-gradient(135deg,#00f0ff,#22d3ee); color:#030712; padding:0.1rem 0.6rem; border-radius:100px; text-transform:uppercase; margin-left:auto; }
-    .stat-mini { background:rgba(3,7,18,0.4); border:1px solid rgba(0,240,255,0.04); border-radius:10px; padding:0.4rem 0; text-align:center; transition:all 0.2s ease; }
-    .stat-mini:hover { border-color:rgba(0,240,255,0.1); }
-    .stat-mini .num { font-size:1.1rem; font-weight:700; display:block; line-height:1.2; }
-    .stat-mini .label { font-size:0.5rem; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; }
-    .module-category { font-size:0.5rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#4b5563; padding:0.6rem 0.5rem 0.3rem; border-top:1px solid rgba(0,240,255,0.03); margin-top:0.25rem; }
-    .module-category:first-of-type { border-top:none; margin-top:0; }
-    #sidebar .module-item { display:flex; align-items:center; gap:0.6rem; padding:0.3rem 0.6rem; border-radius:8px; transition:all 0.2s ease; border-left:2px solid transparent; font-size:0.8rem; text-decoration:none; color:inherit; cursor:pointer; }
-    #sidebar .module-item:hover { background:rgba(0,240,255,0.04); border-left-color:#00f0ff; }
-    #sidebar .module-item .badge { font-size:0.4rem; font-weight:700; padding:0.1rem 0.5rem; border-radius:100px; letter-spacing:0.04em; margin-left:auto; white-space:nowrap; text-transform:uppercase; }
-    .badge-open { background:rgba(0,240,255,0.08); color:#00f0ff; border:1px solid rgba(0,240,255,0.08); }
-    .badge-locked { background:rgba(248,113,113,0.08); color:#f87171; border:1px solid rgba(248,113,113,0.08); }
-
-    #topNav { position:sticky; top:0; z-index:20; background:rgba(3,7,18,0.7); backdrop-filter:blur(16px); border-bottom:1px solid rgba(0,240,255,0.04); padding:0.5rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; }
-    #topNav .nav-links { display:flex; gap:1rem; font-size:0.75rem; font-weight:500; flex-wrap:wrap; }
-    #topNav .nav-links a { color:#9ca3af; transition:all 0.2s ease; cursor:pointer; text-decoration:none; padding:0.2rem 0.6rem; border-radius:6px; }
-    #topNav .nav-links a:hover { color:#00f0ff; background:rgba(0,240,255,0.05); }
-    #topNav .user-area { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; position:relative; }
-
-    #main-dash { flex:1; padding:0.5rem 2rem 3rem; overflow-y:auto; height:100vh; background:radial-gradient(ellipse at 20% 50%, rgba(0,240,255,0.02) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(0,180,216,0.015) 0%, transparent 50%), #030712; }
-
-    .table-wrap { border-radius:16px; overflow:hidden; border:1px solid rgba(0,240,255,0.04); }
-    .table-wrap table { width:100%; border-collapse:collapse; font-size:0.85rem; }
-    .table-wrap thead { background:rgba(3,7,18,0.6); border-bottom:1px solid rgba(0,240,255,0.04); }
-    .table-wrap thead th { padding:0.7rem 1rem; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; text-align:left; }
-    .table-wrap tbody tr { border-bottom:1px solid rgba(0,240,255,0.02); transition:all 0.15s ease; }
-    .table-wrap tbody tr:hover { background:rgba(0,240,255,0.02); }
-    .table-wrap tbody td { padding:0.6rem 1rem; vertical-align:middle; }
-    .trust-pill { background:rgba(0,240,255,0.06); color:#00f0ff; padding:0.15rem 0.8rem; border-radius:100px; font-weight:600; font-size:0.8rem; border:1px solid rgba(0,240,255,0.06); display:inline-block; }
-
-    .input-dash { background:rgba(3,7,18,0.5); border:1px solid rgba(0,240,255,0.08); color:#e5e7eb; padding:0.6rem 1rem; border-radius:12px; width:100%; outline:none; transition:border 0.2s ease; font-size:0.85rem; }
-    .input-dash:focus { border-color:rgba(0,240,255,0.3); box-shadow:0 0 20px rgba(0,240,255,0.03); }
-    .input-dash::placeholder { color:rgba(255,255,255,0.2); }
-
-    .modal-backdrop { background:rgba(3,7,18,0.8); backdrop-filter:blur(12px); }
-    .modal-box { border:1px solid rgba(0,240,255,0.06); }
-
-    #avatar-container { width:100%; height:300px; border-radius:16px; overflow:hidden; border:1px solid rgba(0,240,255,0.08); background:rgba(3,7,18,0.4); }
-
-    .ercors-logo-svg { height:44px; width:auto; display:block; filter:drop-shadow(0 0 6px rgba(0,240,255,0.15)); }
-    .ercors-logo-dash { height:40px; width:auto; display:block; filter:drop-shadow(0 0 8px rgba(0,240,255,0.15)); }
-
-    .sandbox-demo { background:rgba(3,7,18,0.03); border:1px solid rgba(0,240,255,0.1); border-radius:20px; padding:1.5rem; transition:all 0.3s ease; }
-    .sandbox-demo:hover { border-color:#00f0ff; box-shadow:0 8px 40px rgba(0,240,255,0.05); }
-    .sandbox-input { background:transparent; border:1px solid rgba(0,0,0,0.1); border-radius:12px; padding:0.6rem 1rem; width:100%; font-family:inherit; }
-    .sandbox-input:focus { outline:none; border-color:#00f0ff; }
-
-    .post-card { background:rgba(3,7,18,0.3); border:1px solid rgba(0,240,255,0.06); border-radius:16px; padding:1.5rem; transition:all 0.2s ease; }
-    .post-card:hover { border-color:rgba(0,240,255,0.15); }
-
-    .campaign-card { background:rgba(3,7,18,0.3); border:1px solid rgba(0,240,255,0.06); border-radius:16px; padding:1.5rem; transition:all 0.2s ease; }
-    .campaign-card:hover { border-color:rgba(0,240,255,0.15); transform:translateY(-2px); }
-
-    .empty-state { padding:2rem; text-align:center; color:#6b7280; }
-    .empty-state i { font-size:3rem; margin-bottom:1rem; opacity:0.3; }
-
-    .file-upload-area { border:2px dashed rgba(0,240,255,0.2); border-radius:12px; padding:1.5rem; text-align:center; transition:all 0.3s ease; cursor:pointer; }
-    .file-upload-area:hover { border-color:rgba(0,240,255,0.5); background:rgba(0,240,255,0.02); }
-
-    .audio-wave { display:flex; align-items:center; gap:3px; height:40px; }
-    .audio-wave span { display:block; width:4px; border-radius:2px; background:#00f0ff; animation:wave 1s ease-in-out infinite; }
-    .audio-wave span:nth-child(1) { height:20px; animation-delay:0s; }
-    .audio-wave span:nth-child(2) { height:30px; animation-delay:0.2s; }
-    .audio-wave span:nth-child(3) { height:15px; animation-delay:0.4s; }
-    .audio-wave span:nth-child(4) { height:35px; animation-delay:0.6s; }
-    .audio-wave span:nth-child(5) { height:25px; animation-delay:0.8s; }
-    .audio-wave span:nth-child(6) { height:40px; animation-delay:1.0s; }
-    .audio-wave span:nth-child(7) { height:20px; animation-delay:1.2s; }
-    @keyframes wave { 0%,100%{transform:scaleY(0.4)} 50%{transform:scaleY(1)} }
-
-    .module-detail-card { background:rgba(3,7,18,0.5); border:1px solid rgba(0,240,255,0.08); border-radius:16px; padding:1.5rem; }
-    .module-detail-card h3 { font-size:1.8rem; font-weight:700; color:#fff; }
-    .module-detail-card .category { color:#00f0ff; font-size:0.9rem; }
-    .module-detail-card .desc { color:#9ca3af; margin:1rem 0; }
-    .badge-active { background:rgba(0,240,255,0.15); color:#00f0ff; border:1px solid rgba(0,240,255,0.2); }
-    .badge-inactive { background:rgba(248,113,113,0.15); color:#f87171; border:1px solid rgba(248,113,113,0.2); }
-    #module-detail-section { display:none; }
-
-    /* Share Buttons */
-    .share-buttons { display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center; margin:1rem 0; }
-    .share-buttons a { display:inline-flex; align-items:center; gap:0.4rem; padding:0.4rem 0.9rem; border-radius:30px; font-size:0.75rem; font-weight:600; text-decoration:none; transition:all 0.2s; border:1px solid transparent; }
-    .share-buttons a:hover { transform:scale(1.05); box-shadow:0 4px 12px rgba(0,0,0,0.15); }
-    .share-twitter { background:#1DA1F2; color:#fff; }
-    .share-linkedin { background:#0A66C2; color:#fff; }
-    .share-facebook { background:#1877F2; color:#fff; }
-    .share-whatsapp { background:#25D366; color:#fff; }
-    .share-telegram { background:#0088cc; color:#fff; }
-    .share-email { background:#6c757d; color:#fff; }
-    .share-copy { background:#00f0ff; color:#030712; }
-
-    @media (max-width:820px) {
-      #sidebar { width:100%; min-width:unset; height:auto; max-height:45vh; position:relative; border-right:none; border-bottom:1px solid rgba(0,240,255,0.04); padding:0.75rem; overflow-y:auto; }
-      #topNav { flex-wrap:wrap; padding:0.5rem 1rem; gap:0.5rem; }
-      #topNav .nav-links { gap:0.5rem; font-size:0.65rem; }
-      #main-dash { height:auto; max-height:unset; padding:0.5rem 1rem 2rem; overflow-y:visible; }
-      .container { padding:0 1rem; }
-      .metric-counter { font-size:1.8rem; }
-      .hero-cta-grid { grid-template-columns:1fr 1fr; }
-    }
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#0f172a;min-height:100vh;overflow-x:hidden}::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:rgba(3,7,18,0.05)}::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#00f0ff,#0099cc);border-radius:10px}
+    .container{max-width:1200px;margin:0 auto;padding:0 1.5rem}.section-title{font-size:2.2rem;font-weight:800;margin-bottom:1.5rem;letter-spacing:-0.02em}.section-title span{background:linear-gradient(135deg,#00f0ff,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}.text-gradient{background:linear-gradient(135deg,#00f0ff,#22d3ee,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .glass{background:rgba(255,255,255,0.7);backdrop-filter:blur(12px);border:1px solid rgba(0,0,0,0.05)}.glass-dark{background:rgba(3,7,18,0.6);backdrop-filter:blur(16px);border:1px solid rgba(0,240,255,0.06)}.glass-dark-strong{background:rgba(3,7,18,0.75);backdrop-filter:blur(20px);border:1px solid rgba(0,240,255,0.08)}
+    .glass-card{background:rgba(255,255,255,0.5);backdrop-filter:blur(10px);border:1px solid rgba(0,0,0,0.04);border-radius:20px;transition:all 0.3s ease}.glass-card:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.06);border-color:rgba(0,240,255,0.15)}
+    .glass-card-dark{background:rgba(3,7,18,0.4);backdrop-filter:blur(10px);border:1px solid rgba(0,240,255,0.05);border-radius:16px;transition:all 0.35s ease}.glass-card-dark:hover{border-color:rgba(0,240,255,0.2);transform:translateY(-2px);box-shadow:0 12px 48px rgba(0,240,255,0.04)}
+    .btn-primary{background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.75rem 2rem;border-radius:14px;transition:all 0.3s ease;border:none;display:inline-flex;align-items:center;gap:0.6rem;box-shadow:0 4px 20px rgba(0,240,255,0.25);font-size:1rem;cursor:pointer}.btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 40px rgba(0,240,255,0.35)}
+    .btn-secondary{background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);color:#00aacc;padding:0.75rem 2rem;border-radius:14px;font-weight:600;transition:all 0.25s ease;cursor:pointer;font-size:1rem}.btn-secondary:hover{background:rgba(0,240,255,0.15);transform:translateY(-2px)}
+    .btn-dash-primary{background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.5rem 1.25rem;border-radius:12px;transition:all 0.3s ease;border:none;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;box-shadow:0 4px 20px rgba(0,240,255,0.15)}.btn-dash-primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,240,255,0.25)}
+    .btn-dash-secondary{background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.08);color:#00f0ff;padding:0.4rem 1rem;border-radius:10px;font-weight:600;font-size:0.7rem;transition:all 0.25s ease;cursor:pointer}.btn-dash-secondary:hover{background:rgba(0,240,255,0.08);border-color:rgba(0,240,255,0.2)}
+    .tab-btn{padding:0.5rem 2rem;border-radius:100px;font-weight:600;transition:all 0.25s ease;cursor:pointer;border:2px solid transparent;background:rgba(255,255,255,0.05);color:#94a3b8}.tab-btn.active{background:#00f0ff;color:#030712;border-color:#00f0ff;box-shadow:0 0 30px rgba(0,240,255,0.2)}.tab-btn:hover{color:#fff}
+    .lang-switcher{display:flex;gap:0.4rem;flex-wrap:wrap}.lang-switcher button{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.65rem;cursor:pointer;transition:all 0.2s}.lang-switcher button.active{background:#00f0ff;color:#030712;border-color:#00f0ff}.lang-switcher button:hover{background:rgba(0,240,255,0.1)}
+    #landing{background:#ffffff;color:#0f172a}#landing .navbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:1.2rem 0;border-bottom:1px solid rgba(0,0,0,0.05)}#landing .navbar .logo-wrap{display:flex;align-items:center;gap:0.5rem}#landing .navbar .nav-actions{display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center}
+    .hero-gradient{background:radial-gradient(ellipse at 30% 20%, rgba(0,240,255,0.08) 0%, transparent 70%), radial-gradient(ellipse at 70% 80%, rgba(0,180,216,0.05) 0%, transparent 70%)}
+    .step-card{background:#f1f5f9;border-radius:20px;padding:1.8rem;transition:all 0.3s ease;border-left:4px solid #00f0ff}.step-card:hover{background:#e2e8f0;transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.04)}
+    .stat-number{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#00f0ff,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .dual-tab-content{display:none}.dual-tab-content.active{display:block;animation:fadeUp 0.5s ease}@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .metric-counter{font-size:2.5rem;font-weight:800;color:#00f0ff}
+    .hero-cta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.8rem;margin-top:1.5rem}.hero-cta-grid .btn-primary{font-size:0.8rem;padding:0.5rem 1rem;text-align:center;justify-content:center}
+    #dashboard{background:#030712;color:#e5e7eb;display:none;min-height:100vh}
+    .neon-text-dash{background:linear-gradient(135deg,#00f0ff,#22d3ee,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .shimmer-text{background:linear-gradient(90deg,#00f0ff,#22d3ee,#67e8f9,#00f0ff);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 4s linear infinite}@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    @keyframes pulse-glow{0%,100%{opacity:0.6}50%{opacity:1}}.pulse-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#00f0ff;animation:pulse-glow 2s ease-in-out infinite;margin-right:0.4rem}
+    #sidebar{width:290px;min-width:290px;height:100vh;position:sticky;top:0;overflow-y:auto;padding:1rem 0.75rem 1.5rem;border-right:1px solid rgba(0,240,255,0.04);background:rgba(3,7,18,0.88);backdrop-filter:blur(16px);display:flex;flex-direction:column;z-index:10}
+    #sidebar .logo{display:flex;align-items:center;gap:0.75rem;padding:0 0.5rem 1rem;border-bottom:1px solid rgba(0,240,255,0.04)}
+    #sidebar .logo-badge{font-size:0.45rem;font-weight:700;background:linear-gradient(135deg,#00f0ff,#22d3ee);color:#030712;padding:0.1rem 0.6rem;border-radius:100px;text-transform:uppercase;margin-left:auto}
+    .stat-mini{background:rgba(3,7,18,0.4);border:1px solid rgba(0,240,255,0.04);border-radius:10px;padding:0.4rem 0;text-align:center;transition:all 0.2s ease}.stat-mini:hover{border-color:rgba(0,240,255,0.1)}.stat-mini .num{font-size:1.1rem;font-weight:700;display:block;line-height:1.2}.stat-mini .label{font-size:0.5rem;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280}
+    .module-category{font-size:0.5rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#4b5563;padding:0.6rem 0.5rem 0.3rem;border-top:1px solid rgba(0,240,255,0.03);margin-top:0.25rem}.module-category:first-of-type{border-top:none;margin-top:0}
+    #sidebar .module-item{display:flex;align-items:center;gap:0.6rem;padding:0.3rem 0.6rem;border-radius:8px;transition:all 0.2s ease;border-left:2px solid transparent;font-size:0.8rem;text-decoration:none;color:inherit;cursor:pointer}
+    #sidebar .module-item:hover{background:rgba(0,240,255,0.04);border-left-color:#00f0ff}
+    #sidebar .module-item .badge{font-size:0.4rem;font-weight:700;padding:0.1rem 0.5rem;border-radius:100px;letter-spacing:0.04em;margin-left:auto;white-space:nowrap;text-transform:uppercase}
+    .badge-open{background:rgba(0,240,255,0.08);color:#00f0ff;border:1px solid rgba(0,240,255,0.08)}.badge-locked{background:rgba(248,113,113,0.08);color:#f87171;border:1px solid rgba(248,113,113,0.08)}
+    #topNav{position:sticky;top:0;z-index:20;background:rgba(3,7,18,0.7);backdrop-filter:blur(16px);border-bottom:1px solid rgba(0,240,255,0.04);padding:0.5rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem}
+    #topNav .nav-links{display:flex;gap:1rem;font-size:0.75rem;font-weight:500;flex-wrap:wrap}#topNav .nav-links a{color:#9ca3af;transition:all 0.2s ease;cursor:pointer;text-decoration:none;padding:0.2rem 0.6rem;border-radius:6px}#topNav .nav-links a:hover{color:#00f0ff;background:rgba(0,240,255,0.05)}
+    #topNav .user-area{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:relative}
+    #main-dash{flex:1;padding:0.5rem 2rem 3rem;overflow-y:auto;height:100vh;background:radial-gradient(ellipse at 20% 50%, rgba(0,240,255,0.02) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(0,180,216,0.015) 0%, transparent 50%), #030712}
+    .table-wrap{border-radius:16px;overflow:hidden;border:1px solid rgba(0,240,255,0.04)}.table-wrap table{width:100%;border-collapse:collapse;font-size:0.85rem}.table-wrap thead{background:rgba(3,7,18,0.6);border-bottom:1px solid rgba(0,240,255,0.04)}.table-wrap thead th{padding:0.7rem 1rem;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;text-align:left}.table-wrap tbody tr{border-bottom:1px solid rgba(0,240,255,0.02);transition:all 0.15s ease}.table-wrap tbody tr:hover{background:rgba(0,240,255,0.02)}.table-wrap tbody td{padding:0.6rem 1rem;vertical-align:middle}
+    .trust-pill{background:rgba(0,240,255,0.06);color:#00f0ff;padding:0.15rem 0.8rem;border-radius:100px;font-weight:600;font-size:0.8rem;border:1px solid rgba(0,240,255,0.06);display:inline-block}
+    .input-dash{background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.08);color:#e5e7eb;padding:0.6rem 1rem;border-radius:12px;width:100%;outline:none;transition:border 0.2s ease;font-size:0.85rem}.input-dash:focus{border-color:rgba(0,240,255,0.3);box-shadow:0 0 20px rgba(0,240,255,0.03)}.input-dash::placeholder{color:rgba(255,255,255,0.2)}
+    .modal-backdrop{background:rgba(3,7,18,0.8);backdrop-filter:blur(12px)}.modal-box{border:1px solid rgba(0,240,255,0.06)}
+    #avatar-container{width:100%;height:300px;border-radius:16px;overflow:hidden;border:1px solid rgba(0,240,255,0.08);background:rgba(3,7,18,0.4)}
+    .ercors-logo-svg{height:44px;width:auto;display:block;filter:drop-shadow(0 0 6px rgba(0,240,255,0.15))}.ercors-logo-dash{height:40px;width:auto;display:block;filter:drop-shadow(0 0 8px rgba(0,240,255,0.15))}
+    .sandbox-demo{background:rgba(3,7,18,0.03);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:1.5rem;transition:all 0.3s ease}.sandbox-demo:hover{border-color:#00f0ff;box-shadow:0 8px 40px rgba(0,240,255,0.05)}
+    .sandbox-input{background:transparent;border:1px solid rgba(0,0,0,0.1);border-radius:12px;padding:0.6rem 1rem;width:100%;font-family:inherit}.sandbox-input:focus{outline:none;border-color:#00f0ff}
+    .post-card{background:rgba(3,7,18,0.3);border:1px solid rgba(0,240,255,0.06);border-radius:16px;padding:1.5rem;transition:all 0.2s ease}.post-card:hover{border-color:rgba(0,240,255,0.15)}
+    .campaign-card{background:rgba(3,7,18,0.3);border:1px solid rgba(0,240,255,0.06);border-radius:16px;padding:1.5rem;transition:all 0.2s ease}.campaign-card:hover{border-color:rgba(0,240,255,0.15);transform:translateY(-2px)}
+    .empty-state{padding:2rem;text-align:center;color:#6b7280}.empty-state i{font-size:3rem;margin-bottom:1rem;opacity:0.3}
+    .file-upload-area{border:2px dashed rgba(0,240,255,0.2);border-radius:12px;padding:1.5rem;text-align:center;transition:all 0.3s ease;cursor:pointer}.file-upload-area:hover{border-color:rgba(0,240,255,0.5);background:rgba(0,240,255,0.02)}
+    .audio-wave{display:flex;align-items:center;gap:3px;height:40px}.audio-wave span{display:block;width:4px;border-radius:2px;background:#00f0ff;animation:wave 1s ease-in-out infinite}.audio-wave span:nth-child(1){height:20px;animation-delay:0s}.audio-wave span:nth-child(2){height:30px;animation-delay:0.2s}.audio-wave span:nth-child(3){height:15px;animation-delay:0.4s}.audio-wave span:nth-child(4){height:35px;animation-delay:0.6s}.audio-wave span:nth-child(5){height:25px;animation-delay:0.8s}.audio-wave span:nth-child(6){height:40px;animation-delay:1.0s}.audio-wave span:nth-child(7){height:20px;animation-delay:1.2s}@keyframes wave{0%,100%{transform:scaleY(0.4)}50%{transform:scaleY(1)}}
+    .module-detail-card{background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.08);border-radius:16px;padding:1.5rem}.module-detail-card h3{font-size:1.8rem;font-weight:700;color:#fff}.module-detail-card .category{color:#00f0ff;font-size:0.9rem}.module-detail-card .desc{color:#9ca3af;margin:1rem 0}.badge-active{background:rgba(0,240,255,0.15);color:#00f0ff;border:1px solid rgba(0,240,255,0.2)}.badge-inactive{background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.2)}
+    #module-detail-section{display:none}
+    .share-buttons{display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin:1rem 0}.share-buttons a{display:inline-flex;align-items:center;gap:0.4rem;padding:0.4rem 0.9rem;border-radius:30px;font-size:0.75rem;font-weight:600;text-decoration:none;transition:all 0.2s;border:1px solid transparent}.share-buttons a:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(0,0,0,0.15)}.share-twitter{background:#1DA1F2;color:#fff}.share-linkedin{background:#0A66C2;color:#fff}.share-facebook{background:#1877F2;color:#fff}.share-whatsapp{background:#25D366;color:#fff}.share-telegram{background:#0088cc;color:#fff}.share-email{background:#6c757d;color:#fff}.share-copy{background:#00f0ff;color:#030712}
+    @media(max-width:820px){#sidebar{width:100%;min-width:unset;height:auto;max-height:45vh;position:relative;border-right:none;border-bottom:1px solid rgba(0,240,255,0.04);padding:0.75rem;overflow-y:auto}#topNav{flex-wrap:wrap;padding:0.5rem 1rem;gap:0.5rem}#topNav .nav-links{gap:0.5rem;font-size:0.65rem}#main-dash{height:auto;max-height:unset;padding:0.5rem 1rem 2rem;overflow-y:visible}.container{padding:0 1rem}.metric-counter{font-size:1.8rem}.hero-cta-grid{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
 
-<!-- ===== LANDING ===== -->
+<!-- ===== LANDING PAGE ===== -->
 <div id="landing">
   <div class="container">
     <nav class="navbar">
@@ -225,7 +117,7 @@
         <button class="btn-primary text-sm" onclick="openRegisterModal('expert')" data-i18n="cta18">💸 Free AI Audit & Code Optimization</button>
         <button class="btn-primary text-sm" onclick="openRegisterModal('expert')" data-i18n="cta19">🔑 VIP Access to Unlimited Opportunities</button>
         <button class="btn-primary text-sm" onclick="openRegisterModal('expert')" data-i18n="cta20">🚀 Sign Up Now – Free AGI Version</button>
-        <!-- Extra viral -->
+        <!-- Viral -->
         <button class="btn-primary text-sm" onclick="openRegisterModal('expert')" style="background:linear-gradient(135deg,#f093fb,#f5576c);">🔥 Invite 5 Friends – Get $100 Bonus</button>
         <button class="btn-primary text-sm" onclick="openRegisterModal('expert')" style="background:linear-gradient(135deg,#4facfe,#00f2fe);">⏳ Only 47 Spots Left – Join Now</button>
         <button class="btn-primary text-sm" onclick="openRegisterModal('expert')" style="background:linear-gradient(135deg,#43e97b,#38f9d7);">🎯 Free AI Resume Check – Limited Offer</button>
@@ -262,21 +154,9 @@
     <section class="py-12">
       <h2 class="section-title text-center" data-i18n="what_title">What Is This Platform & What’s in It for You?</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="glass-card p-6 text-center">
-          <i class="fas fa-user-graduate text-4xl text-[#00f0ff]"></i>
-          <h3 class="text-xl font-bold mt-3" data-i18n="what_user_title">For End‑Users</h3>
-          <p class="text-gray-600 text-sm" data-i18n="what_user_desc">Free, ultra‑fast AGI assistant, 3D/Spatial VR environments, and AI‑driven skill development.</p>
-        </div>
-        <div class="glass-card p-6 text-center">
-          <i class="fas fa-code text-4xl text-[#00f0ff]"></i>
-          <h3 class="text-xl font-bold mt-3" data-i18n="what_dev_title">For Developers & Experts</h3>
-          <p class="text-gray-600 text-sm" data-i18n="what_dev_desc">Your code and knowledge are objectively rated by AI Trust Score (m3). No CV or interviews – automatically matched to top‑paying B2B projects in the US and Europe.</p>
-        </div>
-        <div class="glass-card p-6 text-center">
-          <i class="fas fa-building text-4xl text-[#00f0ff]"></i>
-          <h3 class="text-xl font-bold mt-3" data-i18n="what_biz_title">For Companies & Businesses</h3>
-          <p class="text-gray-600 text-sm" data-i18n="what_biz_desc">Autonomous AI Agents (m30) and secure Crypto/B2B Escrow (m4) cut hiring and operational costs by 80%.</p>
-        </div>
+        <div class="glass-card p-6 text-center"><i class="fas fa-user-graduate text-4xl text-[#00f0ff]"></i><h3 class="text-xl font-bold mt-3" data-i18n="what_user_title">For End‑Users</h3><p class="text-gray-600 text-sm" data-i18n="what_user_desc">Free, ultra‑fast AGI assistant, 3D/Spatial VR environments, and AI‑driven skill development.</p></div>
+        <div class="glass-card p-6 text-center"><i class="fas fa-code text-4xl text-[#00f0ff]"></i><h3 class="text-xl font-bold mt-3" data-i18n="what_dev_title">For Developers & Experts</h3><p class="text-gray-600 text-sm" data-i18n="what_dev_desc">Your code and knowledge are objectively rated by AI Trust Score (m3). No CV or interviews – automatically matched to top‑paying B2B projects in the US and Europe.</p></div>
+        <div class="glass-card p-6 text-center"><i class="fas fa-building text-4xl text-[#00f0ff]"></i><h3 class="text-xl font-bold mt-3" data-i18n="what_biz_title">For Companies & Businesses</h3><p class="text-gray-600 text-sm" data-i18n="what_biz_desc">Autonomous AI Agents (m30) and secure Crypto/B2B Escrow (m4) cut hiring and operational costs by 80%.</p></div>
       </div>
     </section>
 
@@ -284,21 +164,9 @@
     <section class="py-12 bg-gray-50 rounded-3xl px-6" style="margin:0 -1.5rem;">
       <h2 class="section-title text-center" data-i18n="roadmap_title">Roadmap & Vision</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="step-card">
-          <div class="text-3xl font-bold text-[#00f0ff]">2026 Q3–Q4</div>
-          <h3 class="font-bold text-lg mt-2" data-i18n="roadmap_1_title">Global AGI Orchestrator</h3>
-          <p class="text-sm text-gray-600" data-i18n="roadmap_1_desc">Launch autonomous B2B Escrow and AGI Orchestrator (m30) – 100M+ users.</p>
-        </div>
-        <div class="step-card">
-          <div class="text-3xl font-bold text-[#00f0ff]">2027</div>
-          <h3 class="font-bold text-lg mt-2" data-i18n="roadmap_2_title">Spatial WebXR & Quantum Gateway</h3>
-          <p class="text-sm text-gray-600" data-i18n="roadmap_2_desc">Onboard 1B users into 3D and quantum simulation environments via WebXR (m37) and Quantum Gateway (m27).</p>
-        </div>
-        <div class="step-card">
-          <div class="text-3xl font-bold text-[#00f0ff]">2028–2030</div>
-          <h3 class="font-bold text-lg mt-2" data-i18n="roadmap_3_title">Global Decentralized AGI Network</h3>
-          <p class="text-sm text-gray-600" data-i18n="roadmap_3_desc">Become the single AGI economic and social ecosystem covering 5 billion internet users worldwide.</p>
-        </div>
+        <div class="step-card"><div class="text-3xl font-bold text-[#00f0ff]">2026 Q3–Q4</div><h3 class="font-bold text-lg mt-2" data-i18n="roadmap_1_title">Global AGI Orchestrator</h3><p class="text-sm text-gray-600" data-i18n="roadmap_1_desc">Launch autonomous B2B Escrow and AGI Orchestrator (m30) – 100M+ users.</p></div>
+        <div class="step-card"><div class="text-3xl font-bold text-[#00f0ff]">2027</div><h3 class="font-bold text-lg mt-2" data-i18n="roadmap_2_title">Spatial WebXR & Quantum Gateway</h3><p class="text-sm text-gray-600" data-i18n="roadmap_2_desc">Onboard 1B users into 3D and quantum simulation environments via WebXR (m37) and Quantum Gateway (m27).</p></div>
+        <div class="step-card"><div class="text-3xl font-bold text-[#00f0ff]">2028–2030</div><h3 class="font-bold text-lg mt-2" data-i18n="roadmap_3_title">Global Decentralized AGI Network</h3><p class="text-sm text-gray-600" data-i18n="roadmap_3_desc">Become the single AGI economic and social ecosystem covering 5 billion internet users worldwide.</p></div>
       </div>
     </section>
 
@@ -369,9 +237,7 @@
         <div class="stat-mini"><span class="num text-[#fbbf24]" id="statOpenSide">64</span><span class="label">Open</span></div>
         <div class="stat-mini"><span class="num text-[#f87171]" id="statLockedSide">0</span><span class="label">Locked</span></div>
       </div>
-      <div class="mt-2 flex-1 overflow-y-auto pr-1" style="max-height:calc(100vh - 200px);">
-        <div id="modulesList"></div>
-      </div>
+      <div class="mt-2 flex-1 overflow-y-auto pr-1" style="max-height:calc(100vh - 200px);"><div id="modulesList"></div></div>
     </aside>
 
     <div style="flex:1;display:flex;flex-direction:column;min-height:100vh;">
@@ -455,7 +321,7 @@
           <div id="campaigns-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="empty-state col-span-2"><i class="fas fa-bullhorn"></i><p>Loading campaigns...</p></div></div>
         </section>
 
-        <!-- Social Feed -->
+        <!-- Social -->
         <section id="social-section" class="mb-8">
           <div class="flex items-center gap-2 mb-3"><i class="fas fa-share-alt text-[#22d3ee] text-lg"></i><h2 class="text-lg font-bold text-white">Social Feed</h2></div>
           <div class="glass-card-dark rounded-xl p-4 mb-4">
@@ -656,153 +522,92 @@
 <!-- ===== JAVASCRIPT ===== -->
 <script>
 // ========================================================================
-// 1. I18N – fallback only English for simplicity (extend as needed)
+// 1. I18N – minimal (expandable)
 // ========================================================================
 const translations = {
   en: {
     hero_title: "ERCORS AGI: Global Autonomous Engine & AI Trust Ecosystem",
     hero_tagline: '"Uniting 5 Billion People, Empowering with AGI"',
-    cta1: "⚡ Calculate AI Trust Score in 1s Free",
-    cta2: "🚀 Launch AGI Assistant Free",
-    cta3: "💼 Auto‑Match to Top $100k+ B2B Jobs",
-    cta4: "🤖 Create Autonomous AI Agent in 3s",
-    cta5: "🎁 Get $50 Cloud GPU Credit on Signup",
-    cta6: "🔒 AI Cyber‑Security Test for Code & Projects",
-    cta7: "🎮 Enter 3D WebXR Virtual World (Demo)",
-    cta8: "📊 Test Code in Senior AI Sandbox Free",
-    cta9: "💰 10x Monthly Income Strategy via AI",
-    cta10: "🌐 Global B2B Escrow Contract Setup",
-    cta11: "⚡ Groq‑Speed Zero‑Latency AI Chat",
-    cta12: "🏆 Join Top 1% AI Engineers Ranking",
-    cta13: "🔥 Generate 1,000 Autonomous SMM Posts",
-    cta14: "📈 Investor Financial Metrics Dashboard",
-    cta15: "🧠 AI Certification for Your Knowledge",
-    cta16: "🤝 Hire AI Employees Free Trial",
-    cta17: "🔮 Join the 2030 AGI Future Today",
-    cta18: "💸 Free AI Audit & Code Optimization",
-    cta19: "🔑 VIP Access to Unlimited Opportunities",
-    cta20: "🚀 Sign Up Now – Free AGI Version",
+    cta1: "⚡ Calculate AI Trust Score in 1s Free", cta2: "🚀 Launch AGI Assistant Free",
+    cta3: "💼 Auto‑Match to Top $100k+ B2B Jobs", cta4: "🤖 Create Autonomous AI Agent in 3s",
+    cta5: "🎁 Get $50 Cloud GPU Credit on Signup", cta6: "🔒 AI Cyber‑Security Test for Code & Projects",
+    cta7: "🎮 Enter 3D WebXR Virtual World (Demo)", cta8: "📊 Test Code in Senior AI Sandbox Free",
+    cta9: "💰 10x Monthly Income Strategy via AI", cta10: "🌐 Global B2B Escrow Contract Setup",
+    cta11: "⚡ Groq‑Speed Zero‑Latency AI Chat", cta12: "🏆 Join Top 1% AI Engineers Ranking",
+    cta13: "🔥 Generate 1,000 Autonomous SMM Posts", cta14: "📈 Investor Financial Metrics Dashboard",
+    cta15: "🧠 AI Certification for Your Knowledge", cta16: "🤝 Hire AI Employees Free Trial",
+    cta17: "🔮 Join the 2030 AGI Future Today", cta18: "💸 Free AI Audit & Code Optimization",
+    cta19: "🔑 VIP Access to Unlimited Opportunities", cta20: "🚀 Sign Up Now – Free AGI Version",
     what_title: "What Is This Platform & What’s in It for You?",
-    what_user_title: "For End‑Users",
-    what_user_desc: "Free, ultra‑fast AGI assistant, 3D/Spatial VR environments, and AI‑driven skill development.",
-    what_dev_title: "For Developers & Experts",
-    what_dev_desc: "Your code and knowledge are objectively rated by AI Trust Score (m3). No CV or interviews – automatically matched to top‑paying B2B projects in the US and Europe.",
-    what_biz_title: "For Companies & Businesses",
-    what_biz_desc: "Autonomous AI Agents (m30) and secure Crypto/B2B Escrow (m4) cut hiring and operational costs by 80%.",
+    what_user_title: "For End‑Users", what_user_desc: "Free, ultra‑fast AGI assistant, 3D/Spatial VR environments, and AI‑driven skill development.",
+    what_dev_title: "For Developers & Experts", what_dev_desc: "Your code and knowledge are objectively rated by AI Trust Score (m3). No CV or interviews – automatically matched to top‑paying B2B projects in the US and Europe.",
+    what_biz_title: "For Companies & Businesses", what_biz_desc: "Autonomous AI Agents (m30) and secure Crypto/B2B Escrow (m4) cut hiring and operational costs by 80%.",
     roadmap_title: "Roadmap & Vision",
-    roadmap_1_title: "Global AGI Orchestrator",
-    roadmap_1_desc: "Launch autonomous B2B Escrow and AGI Orchestrator (m30) – 100M+ users.",
-    roadmap_2_title: "Spatial WebXR & Quantum Gateway",
-    roadmap_2_desc: "Onboard 1B users into 3D and quantum simulation environments via WebXR (m37) and Quantum Gateway (m27).",
-    roadmap_3_title: "Global Decentralized AGI Network",
-    roadmap_3_desc: "Become the single AGI economic and social ecosystem covering 5 billion internet users worldwide.",
+    roadmap_1_title: "Global AGI Orchestrator", roadmap_1_desc: "Launch autonomous B2B Escrow and AGI Orchestrator (m30) – 100M+ users.",
+    roadmap_2_title: "Spatial WebXR & Quantum Gateway", roadmap_2_desc: "Onboard 1B users into 3D and quantum simulation environments via WebXR (m37) and Quantum Gateway (m27).",
+    roadmap_3_title: "Global Decentralized AGI Network", roadmap_3_desc: "Become the single AGI economic and social ecosystem covering 5 billion internet users worldwide.",
     finance_title: "Financial Metrics & Valuation",
-    finance_tam: "$1.5T",
-    finance_tam_label: "Total Addressable Market",
-    finance_val: "$10B+",
-    finance_val_label: "Target Valuation (Decacorn)",
-    finance_growth: "300–500%",
-    finance_growth_label: "YoY Revenue Growth",
-    finance_rev: "$1.5T",
-    finance_rev_label: "Projected Annual Revenue",
-    ceo_title: "CEO & Leadership",
-    ceo_name: "Shakhzod Khakimov",
+    finance_tam: "$1.5T", finance_tam_label: "Total Addressable Market",
+    finance_val: "$10B+", finance_val_label: "Target Valuation (Decacorn)",
+    finance_growth: "300–500%", finance_growth_label: "YoY Revenue Growth",
+    finance_rev: "$1.5T", finance_rev_label: "Projected Annual Revenue",
+    ceo_title: "CEO & Leadership", ceo_name: "Shakhzod Khakimov",
     ceo_title_label: "Chief Executive Officer & Chief AI Systems Architect",
     ceo_desc: "Visionary behind ERCORS – uniting AI, spatial computing, and quantum‑safe infrastructure to build the world’s first autonomous AGI economy.",
     strength_title: "Key Platform Strengths",
-    str1_title: "Zero‑Latency Performance",
-    str1_desc: "Groq + Llama‑3 integration – sub‑millisecond response times.",
-    str2_title: "AI Trust Score (m3)",
-    str2_desc: "100% objective, cyber‑secure skill analysis without human bias.",
-    str3_title: "Autonomous B2B Escrow",
-    str3_desc: "Smart contracts guarantee payments – zero fraud risk.",
-    str4_title: "Self‑Healing Engine",
-    str4_desc: "AI auto‑fixes code and server errors, 24/7 autonomous operation.",
-    str5_title: "All‑In‑One Meta‑Ecosystem",
-    str5_desc: "Chat, Code Sandbox, 3D VR, Cloud GPU, SMM Agents, and Financial Exchange in one secure monorepo.",
-    str6_title: "Multi‑Layer Monetization",
-    str6_desc: "B2C, B2B, Infrastructure, and API pay‑as‑you‑go models for consistent revenue flow.",
-    login: "Sign In",
-    company: "Company",
-    expert: "Expert"
+    str1_title: "Zero‑Latency Performance", str1_desc: "Groq + Llama‑3 integration – sub‑millisecond response times.",
+    str2_title: "AI Trust Score (m3)", str2_desc: "100% objective, cyber‑secure skill analysis without human bias.",
+    str3_title: "Autonomous B2B Escrow", str3_desc: "Smart contracts guarantee payments – zero fraud risk.",
+    str4_title: "Self‑Healing Engine", str4_desc: "AI auto‑fixes code and server errors, 24/7 autonomous operation.",
+    str5_title: "All‑In‑One Meta‑Ecosystem", str5_desc: "Chat, Code Sandbox, 3D VR, Cloud GPU, SMM Agents, and Financial Exchange in one secure monorepo.",
+    str6_title: "Multi‑Layer Monetization", str6_desc: "B2C, B2B, Infrastructure, and API pay‑as‑you‑go models for consistent revenue flow.",
+    login: "Sign In", company: "Company", expert: "Expert"
   },
-  // Other languages omitted for brevity, but structure is same.
+  ru: {}, uz: {}, tr: {}, ar: {}, zh: {}
 };
-const defaultLang = 'en';
-// For other languages, fallback to English
-['ru','uz','tr','ar','zh'].forEach(lang => {
+for (let lang of ['ru','uz','tr','ar','zh']) {
   if (!translations[lang]) translations[lang] = {};
-  for (let key in translations.en) {
-    if (!translations[lang][key]) translations[lang][key] = translations.en[key];
-  }
-});
+  for (let key in translations.en) translations[lang][key] = translations.en[key];
+}
 
 let currentLang = 'en';
 function switchLanguage(lang) {
   if (!translations[lang]) return;
   currentLang = lang;
-  document.querySelectorAll('#langSwitcher button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.lang === lang);
-  });
+  document.querySelectorAll('#langSwitcher button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (translations[lang][key] !== undefined) {
-      el.textContent = translations[lang][key];
-    }
+    if (translations[lang][key] !== undefined) el.textContent = translations[lang][key];
   });
 }
-document.querySelectorAll('#langSwitcher button').forEach(btn => {
-  btn.addEventListener('click', function() {
-    switchLanguage(this.dataset.lang);
-  });
-});
+document.querySelectorAll('#langSwitcher button').forEach(b => b.addEventListener('click', function() { switchLanguage(this.dataset.lang); }));
 
-// ========================================================================
-// COPY LINK
-// ========================================================================
 function copyLink() {
   const url = window.location.href;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => alert('Link copied! Share it with your friends.')).catch(() => alert('Unable to copy. Please copy the URL manually.'));
-  } else {
-    const textarea = document.createElement('textarea');
-    textarea.value = url;
-    document.body.appendChild(textarea);
-    textarea.select();
-    try { document.execCommand('copy'); alert('Link copied!'); } catch(e) { alert('Unable to copy.'); }
-    document.body.removeChild(textarea);
-  }
+  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(() => alert('Link copied!')).catch(() => alert('Unable to copy.')); }
+  else { const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); alert('Link copied!'); } catch(e) { alert('Unable to copy.'); } document.body.removeChild(ta); }
 }
 
 // ========================================================================
-// GLOBALS & NAVIGATION
+// 2. GLOBALS & NAVIGATION
 // ========================================================================
 let loggedIn = false, currentUser = null, sessionToken = null, modulesData = [];
 
-function showLanding() {
-  document.getElementById('landing').style.display = 'block';
-  document.getElementById('dashboard').style.display = 'none';
-}
+function showLanding() { document.getElementById('landing').style.display = 'block'; document.getElementById('dashboard').style.display = 'none'; }
 function showDashboard() {
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
-  loadModules();
-  loadTalents();
-  loadRanking();
-  loadCampaigns();
-  loadPosts();
-  loadEscrows();
+  loadModules(); loadTalents(); loadRanking(); loadCampaigns(); loadPosts(); loadEscrows();
   updateUI();
   setTimeout(() => init3DAvatar(currentUser ? currentUser.full_name : 'User'), 500);
 }
 function showSection(id) {
   document.getElementById('module-detail-section').style.display = 'none';
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
+  const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
 // ========================================================================
-// FILE INPUT NAMES
+// 3. FILE INPUT NAMES
 // ========================================================================
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('cv-file-input')?.addEventListener('change', function() {
@@ -814,74 +619,45 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ========================================================================
-// MODULES
+// 4. MODULES (64)
 // ========================================================================
-const MODULES = [
-  { id: "m1", name: "Enterprise AI Talent Matching", category: "Core", icon: "fa-users", active: true, description: "AI-powered matching of candidates to campaigns with ranking and filtering." },
-  { id: "m2", name: "Managed RLHF & Data Annotation", category: "Core", icon: "fa-robot", active: true, description: "RLHF data annotation, quality control, and expert feedback." },
-  { id: "m3", name: "AI Hiring SaaS & Trust Score", category: "Core", icon: "fa-microphone", active: true, description: "Automated interviews, candidate evaluation, and Trust Score calculation." },
-  { id: "m4", name: "Global Escrow & B2B Contracts", category: "Core", icon: "fa-file-signature", active: true, description: "International contracts, escrow accounts, payments, and document management." },
-  { id: "m5", name: "Micro‑Equity HFT Engine", category: "Core", icon: "fa-chart-line", active: true, description: "Real-time financial data, charts, and trading signals." },
-  { id: "m6", name: "AI Vetted Engineers", category: "Talent Sourcing", icon: "fa-laptop-code", active: true, description: "AI-verified engineers profiles with 7+ evaluation criteria." },
-  { id: "m7", name: "AI & ML Specialists", category: "Talent Sourcing", icon: "fa-brain", active: true, description: "Database of 1000+ ML specialists with their projects." },
-  { id: "m8", name: "Autonomous AI Agents & Swarm", category: "Talent Sourcing", icon: "fa-robot", active: true, description: "Manage autonomous agents, assign tasks, monitor results." },
-  { id: "m9", name: "Embedded & Edge AI Hardware", category: "Talent Sourcing", icon: "fa-microchip", active: true, description: "Edge AI hardware and software platforms." },
-  { id: "m10", name: "Quantum Computing & Security", category: "Talent Sourcing", icon: "fa-atom", active: true, description: "Quantum computing and post-quantum cryptography experts." },
-  { id: "m11", name: "RLHF & Model Evaluation", category: "Data & Training", icon: "fa-comments", active: true, description: "RLHF evaluation, model testing, metrics, performance analysis." },
-  { id: "m12", name: "Code Data Annotation", category: "Data & Training", icon: "fa-tags", active: true, description: "Code data annotation, snippets, and descriptions." },
-  { id: "m13", name: "Multimodal Data Sourcing", category: "Data & Training", icon: "fa-database", active: true, description: "Combine diverse data sources (text, image, audio)." },
-  { id: "m14", name: "Red Teaming & AI Safety", category: "Data & Training", icon: "fa-shield-halved", active: true, description: "AI safety, red teaming, vulnerability detection." },
-  { id: "m15", name: "AI Voice/Video Interview Bot", category: "Hiring Tools", icon: "fa-microphone", active: true, description: "Voice and video interview bot with real‑time transcription." },
-  { id: "m16", name: "Code Assessment Engine", category: "Hiring Tools", icon: "fa-code", active: true, description: "Automated code assessment, testing, and results." },
-  { id: "m17", name: "Background & Trust Score", category: "Hiring Tools", icon: "fa-user-check", active: true, description: "Candidate background check and trust score calculation." },
-  { id: "m18", name: "AI Skill Graph Analyzer", category: "Hiring Tools", icon: "fa-chart-simple", active: true, description: "Skill graph analysis, gap identification, and visualization." },
-  { id: "m19", name: "Dedicated Remote Teams", category: "Direct & Premium", icon: "fa-people-group", active: true, description: "Full service for remote teams – team building, management." },
-  { id: "m20", name: "Express AI Consultation", category: "Direct & Premium", icon: "fa-user-tie", active: true, description: "Quick AI consultations – 30-minute sessions with experts." },
-  { id: "m21", name: "AI Startup Builder On‑Demand", category: "Direct & Premium", icon: "fa-rocket", active: true, description: "AI solutions for startups, MVP creation and acceleration." },
-  { id: "m22", name: "Web3 & Spatial Computing", category: "Direct & Premium", icon: "fa-cubes", active: true, description: "Web3, metaverse, spatial computing projects." },
-  { id: "m23", name: "Direct Escrow & Mass Payouts", category: "Direct & Premium", icon: "fa-hand-holding-dollar", active: true, description: "Mass payouts and escrow services – process 1000+ transactions." },
-  { id: "m24", name: "Enterprise SLA & Managed PM", category: "Direct & Premium", icon: "fa-clipboard-list", active: true, description: "Enterprise SLA, project management, and guarantees." },
-  { id: "m25", name: "Instant Talent API Access", category: "Direct & Premium", icon: "fa-plug", active: true, description: "RESTful API for quick talent search and filtering." },
-  { id: "m26", name: "Cloud GPU & TPU Server Access", category: "Infrastructure", icon: "fa-cloud", active: true, description: "Cloud GPU/TPU server access and management." },
-  { id: "m27", name: "Quantum QPU Remote Access", category: "Infrastructure", icon: "fa-atom", active: true, description: "Remote access to quantum processors." },
-  { id: "m28", name: "AI Sandbox & Code Execution Nodes", category: "Infrastructure", icon: "fa-flask", active: true, description: "Isolated sandbox environment for safe code execution." },
-  { id: "m29", name: "Serverless AI Endpoint Hosting", category: "Infrastructure", icon: "fa-server", active: true, description: "Serverless AI endpoint hosting." },
-  { id: "m30", name: "Autonomous Software Engineer Swarm", category: "Infrastructure", icon: "fa-robot", active: true, description: "Swarm of autonomous AI software engineers – 24/7." },
-  { id: "m31", name: "AI Data Scraping & Web Extraction", category: "Infrastructure", icon: "fa-spider", active: true, description: "Automated web scraping and data extraction." },
-  { id: "m32", name: "Autonomous SMM & Marketing Agents", category: "Infrastructure", icon: "fa-bullhorn", active: true, description: "Autonomous marketing agents for social media." },
-  { id: "m33", name: "AI Customer Support & Voice Bot", category: "Infrastructure", icon: "fa-headset", active: true, description: "24/7 AI customer support bot with voice interface." },
-  { id: "m34", name: "Zero‑Knowledge Proofs Sandbox", category: "Infrastructure", icon: "fa-shield", active: true, description: "Sandbox for testing zero-knowledge proofs." },
-  { id: "m35", name: "Automated NDA & Smart Contracts", category: "Infrastructure", icon: "fa-gavel", active: true, description: "Automated NDA and smart contract generation." },
-  { id: "m36", name: "Deepfake & Synthetic Media Audit", category: "Infrastructure", icon: "fa-video", active: true, description: "Deepfake and synthetic media detection." },
-  { id: "m37", name: "WebXR & Spatial VR Showroom", category: "Infrastructure", icon: "fa-vr-cardboard", active: true, description: "WebXR virtual showroom – VR and AR experiences." },
-  { id: "m38", name: "3D Generative Asset Factory", category: "Infrastructure", icon: "fa-cube", active: true, description: "AI-driven 3D model, texture, and animation generation." },
-  { id: "m39", name: "Digital Twin Factory Simulation", category: "Infrastructure", icon: "fa-industry", active: true, description: "Digital twin simulations for factories, warehouses." },
-  { id: "m40", name: "Custom GLSL Shader & Physics", category: "Infrastructure", icon: "fa-paint-brush", active: true, description: "Custom GLSL shaders and real-time physics simulations." },
-  { id: "m41", name: "High‑Frequency Micro‑Equity Exchange", category: "Infrastructure", icon: "fa-chart-pie", active: true, description: "High-frequency micro-equity trading." },
-  { id: "m42", name: "Global Crypto & Cross‑Border Escrow", category: "Infrastructure", icon: "fa-coins", active: true, description: "Crypto and cross-border escrow services." },
-  { id: "m43", name: "Micro‑Equity Flash Loans & Leverage", category: "Infrastructure", icon: "fa-hand-holding-usd", active: true, description: "Flash loans and leverage operations." },
-  { id: "m44", name: "AI Startup Crowdfunding Portal", category: "Infrastructure", icon: "fa-hand-holding-heart", active: true, description: "Crowdfunding platform for AI startups." },
-  { id: "m45", name: "AI-Powered Code Review", category: "Developer Tools", icon: "fa-code-branch", active: true, description: "AI-driven code review with quality assessment." },
-  { id: "m46", name: "Automated Testing Suite", category: "Developer Tools", icon: "fa-flask", active: true, description: "Automated testing suite with 100+ test types." },
-  { id: "m47", name: "CI/CD Pipeline Integration", category: "Developer Tools", icon: "fa-gears", active: true, description: "CI/CD pipeline integration – GitHub Actions, GitLab CI." },
-  { id: "m48", name: "Docker & Kubernetes Orchestration", category: "Developer Tools", icon: "fa-cubes", active: true, description: "Containerization and orchestration with Docker, Kubernetes." },
-  { id: "m49", name: "AI-Driven Documentation", category: "Developer Tools", icon: "fa-book", active: true, description: "AI-generated documentation – code comments, README." },
-  { id: "m50", name: "Code Quality Dashboard", category: "Developer Tools", icon: "fa-chart-bar", active: true, description: "Code quality monitoring with SonarQube, CodeClimate." },
-  { id: "m51", name: "Real-Time Error Tracking", category: "Developer Tools", icon: "fa-bug", active: true, description: "Real-time error tracking and alerts – Sentry, Rollbar." },
-  { id: "m52", name: "Performance Monitoring", category: "Developer Tools", icon: "fa-tachometer-alt", active: true, description: "APM, Prometheus, Grafana for performance monitoring." },
-  { id: "m53", name: "Security Vulnerability Scanner", category: "Developer Tools", icon: "fa-shield", active: true, description: "SAST, DAST, SCA scanning for vulnerabilities." },
-  { id: "m54", name: "API Gateway & Management", category: "Developer Tools", icon: "fa-plug", active: true, description: "API gateway and management – Kong, Traefik." },
-  { id: "m55", name: "GraphQL Federation", category: "Developer Tools", icon: "fa-network-wired", active: true, description: "GraphQL federation with Apollo Federation." },
-  { id: "m56", name: "Event-Driven Architecture", category: "Developer Tools", icon: "fa-bolt", active: true, description: "Event-driven architecture with Kafka, RabbitMQ." },
-  { id: "m57", name: "Data Lake & Analytics", category: "Developer Tools", icon: "fa-database", active: true, description: "Data lake, ETL pipelines, and BI tools." },
-  { id: "m58", name: "MLOps Pipeline", category: "Developer Tools", icon: "fa-robot", active: true, description: "MLOps lifecycle management with Kubeflow, MLflow." },
-  { id: "m59", name: "Model Monitoring & Drift Detection", category: "Developer Tools", icon: "fa-chart-line", active: true, description: "Data drift, concept drift, and model quality monitoring." },
-  { id: "m60", name: "Feature Store", category: "Developer Tools", icon: "fa-cubes", active: true, description: "Feature store management – Feast, Tecton." },
-  { id: "m61", name: "Explainable AI (XAI)", category: "Developer Tools", icon: "fa-lightbulb", active: true, description: "AI explainability with SHAP, LIME, Integrated Gradients." },
-  { id: "m62", name: "Federated Learning", category: "Developer Tools", icon: "fa-network-wired", active: true, description: "Federated learning with TensorFlow Federated, PySyft." },
-  { id: "m63", name: "Synthetic Data Generation", category: "Developer Tools", icon: "fa-wand-magic", active: true, description: "Synthetic data generation and augmentation." },
-  { id: "m64", name: "AI Governance & Compliance", category: "Developer Tools", icon: "fa-gavel", active: true, description: "AI governance and compliance – GDPR, CCPA, AI Act." }
-];
+const MODULES = [];
+for (let i=1; i<=64; i++) {
+  const cats = ['Core','Talent Sourcing','Data & Training','Hiring Tools','Direct & Premium','Infrastructure','Developer Tools'];
+  const cat = cats[Math.floor((i-1)/9) % cats.length];
+  const names = [
+    'Enterprise AI Talent Matching','Managed RLHF & Data Annotation','AI Hiring SaaS & Trust Score','Global Escrow & B2B Contracts','Micro‑Equity HFT Engine',
+    'AI Vetted Engineers','AI & ML Specialists','Autonomous AI Agents & Swarm','Embedded & Edge AI Hardware','Quantum Computing & Security',
+    'RLHF & Model Evaluation','Code Data Annotation','Multimodal Data Sourcing','Red Teaming & AI Safety','AI Voice/Video Interview Bot',
+    'Code Assessment Engine','Background & Trust Score','AI Skill Graph Analyzer','Dedicated Remote Teams','Express AI Consultation',
+    'AI Startup Builder On‑Demand','Web3 & Spatial Computing','Direct Escrow & Mass Payouts','Enterprise SLA & Managed PM','Instant Talent API Access',
+    'Cloud GPU & TPU Server Access','Quantum QPU Remote Access','AI Sandbox & Code Execution Nodes','Serverless AI Endpoint Hosting','Autonomous Software Engineer Swarm',
+    'AI Data Scraping & Web Extraction','Autonomous SMM & Marketing Agents','AI Customer Support & Voice Bot','Zero‑Knowledge Proofs Sandbox','Automated NDA & Smart Contracts',
+    'Deepfake & Synthetic Media Audit','WebXR & Spatial VR Showroom','3D Generative Asset Factory','Digital Twin Factory Simulation','Custom GLSL Shader & Physics',
+    'High‑Frequency Micro‑Equity Exchange','Global Crypto & Cross‑Border Escrow','Micro‑Equity Flash Loans & Leverage','AI Startup Crowdfunding Portal','AI-Powered Code Review',
+    'Automated Testing Suite','CI/CD Pipeline Integration','Docker & Kubernetes Orchestration','AI-Driven Documentation','Code Quality Dashboard',
+    'Real-Time Error Tracking','Performance Monitoring','Security Vulnerability Scanner','API Gateway & Management','GraphQL Federation',
+    'Event-Driven Architecture','Data Lake & Analytics','MLOps Pipeline','Model Monitoring & Drift Detection','Feature Store',
+    'Explainable AI (XAI)','Federated Learning','Synthetic Data Generation','AI Governance & Compliance'
+  ];
+  const name = names[i-1] || 'Module '+i;
+  const icons = ['fa-users','fa-robot','fa-microphone','fa-file-signature','fa-chart-line','fa-laptop-code','fa-brain','fa-robot','fa-microchip','fa-atom',
+    'fa-comments','fa-tags','fa-database','fa-shield-halved','fa-microphone','fa-code','fa-user-check','fa-chart-simple','fa-people-group','fa-user-tie',
+    'fa-rocket','fa-cubes','fa-hand-holding-dollar','fa-clipboard-list','fa-plug','fa-cloud','fa-atom','fa-flask','fa-server','fa-robot',
+    'fa-spider','fa-bullhorn','fa-headset','fa-shield','fa-gavel','fa-video','fa-vr-cardboard','fa-cube','fa-industry','fa-paint-brush',
+    'fa-chart-pie','fa-coins','fa-hand-holding-usd','fa-hand-holding-heart','fa-code-branch','fa-flask','fa-gears','fa-cubes','fa-book','fa-chart-bar',
+    'fa-bug','fa-tachometer-alt','fa-shield','fa-plug','fa-network-wired','fa-bolt','fa-database','fa-robot','fa-chart-line','fa-cubes',
+    'fa-lightbulb','fa-network-wired','fa-wand-magic','fa-gavel'
+  ];
+  MODULES.push({
+    id: 'm'+i,
+    name: name,
+    category: cat,
+    icon: icons[i-1] || 'fa-cube',
+    active: true,
+    description: 'This module provides advanced AI capabilities for '+cat.toLowerCase()+'.'
+  });
+}
 
 async function loadModules() {
   try {
@@ -933,62 +709,598 @@ async function runModuleAction() {
   const resultDiv = document.getElementById('module-action-result');
   resultDiv.innerHTML = '<span class="text-gray-400">⏳ Running...</span>';
   try {
-    const fd = new FormData();
-    if (currentUser) fd.append('user_id', currentUser.id);
+    const fd = new FormData(); if (currentUser) fd.append('user_id', currentUser.id);
     const res = await fetch(`/api/modules/${id}/action`, { method: 'POST', body: fd });
     const data = await res.json();
-    if (data.status === 'success') {
-      resultDiv.innerHTML = `<span class="text-green-400">✅ ${JSON.stringify(data.action_result)}</span>`;
-    } else {
-      resultDiv.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Error'}</span>`;
-    }
-  } catch(e) {
-    resultDiv.innerHTML = `<span class="text-red-400">❌ Network error</span>`;
-  }
+    if (data.status === 'success') resultDiv.innerHTML = `<span class="text-green-400">✅ ${JSON.stringify(data.action_result)}</span>`;
+    else resultDiv.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Error'}</span>`;
+  } catch(e) { resultDiv.innerHTML = `<span class="text-red-400">❌ Network error</span>`; }
 }
 
 // ========================================================================
-// TALENTS, RANKING, CAMPAIGNS, POSTS, AI CHAT, HARVESTER, NEGOTIATOR, ESCROW, CV, AUDIO, AUTH...
-// (All functions identical to previous version – not repeated for brevity, but included in the full file.)
-// We must include them to make the app functional. They are present in the original code.
-// However, for this final answer, the full file will be provided in the response.
-// The code above is a summary; the final complete file will be delivered.
+// 5. TALENTS
 // ========================================================================
-
-// Placeholders for functions to avoid errors
-async function loadTalents() {}
-async function loadRanking() {}
-async function loadCampaigns() {}
-async function loadPosts() {}
-async function loadEscrows() {}
-async function createCampaign(e) { e.preventDefault(); alert('Campaign creation'); }
-async function createPost(e) { e.preventDefault(); alert('Post creation'); }
-async function likePost(id) {}
-function toggleComments(id) {}
-async function addComment(e,id) {}
-async function startHarvester(e) { e.preventDefault(); alert('Harvester started'); }
-async function negotiateContract(e) { e.preventDefault(); alert('Negotiation'); }
-async function createEscrow(e) { e.preventDefault(); alert('Escrow created'); }
-async function uploadCV(e) { e.preventDefault(); alert('CV uploaded'); }
-async function analyzeAudio(e) { e.preventDefault(); alert('Audio analyzed'); }
-function updateUI() {}
-async function registerUser(e) { e.preventDefault(); alert('Register'); }
-async function loginUser(e) { e.preventDefault(); alert('Login'); }
-function logout() {}
-function viewProfile() {}
-function openRegisterModal(type) { alert('Register modal'); }
-function openLoginModal() { alert('Login modal'); }
-function closeLoginModal() {}
-function closeRegisterModal() {}
-function closeProfileModal() {}
-function toggleUserMenu() {}
-function init3DAvatar(name) {}
-function generateBadge() {}
+async function loadTalents() {
+  try {
+    const res = await fetch('/api/talents');
+    const data = await res.json();
+    renderTalents(data);
+  } catch(e) {
+    renderTalents([
+      {name:'Alice Johnson', skills:'Python, PyTorch, LLM', title:'Senior AI Engineer', trust_score:'99.2'},
+      {name:'Bob Smith', skills:'Rust, C++, Quantum', title:'Systems Architect', trust_score:'98.7'},
+      {name:'Carol White', skills:'React, Node, TypeScript', title:'Full-Stack Lead', trust_score:'97.9'},
+      {name:'David Chen', skills:'Go, Kubernetes, AWS', title:'DevOps Architect', trust_score:'98.1'},
+      {name:'Elena Rodriguez', skills:'Data Science, R, SQL', title:'Data Science Lead', trust_score:'97.5'}
+    ]);
+  }
+}
+function renderTalents(talents) {
+  const tbody = document.getElementById('talents-tbody');
+  if (!talents || !talents.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-4">No talents found</td></tr>'; return; }
+  tbody.innerHTML = talents.map(t => `<tr><td class="font-medium">${t.name}</td><td class="text-gray-300">${t.skills}</td><td class="text-gray-400 text-sm">${t.title}</td><td class="text-right"><span class="trust-pill">${t.trust_score}</span></td></tr>`).join('');
+  document.getElementById('statTalents').textContent = talents.length;
+}
 
 // ========================================================================
-// INIT
+// 6. RANKING
 // ========================================================================
-showLanding();
+async function loadRanking() {
+  const data = [
+    {rank:1,module:'Enterprise AI Talent Matching',aspect:'Matching Speed',score:99.8,revenue:28400,client:'Google',profit:5680,benefit:'1‑sec match',promo:'Promoted',priceUp:'+3.2%'},
+    {rank:2,module:'Managed RLHF & Data Annotation',aspect:'Human Feedback',score:99.5,revenue:22100,client:'OpenAI',profit:4420,benefit:'Expert tuning',promo:'Organic',priceUp:'+2.8%'},
+    {rank:3,module:'AI Hiring SaaS & Trust Score',aspect:'Interview Automation',score:99.2,revenue:19300,client:'Microsoft',profit:3860,benefit:'Video interviews',promo:'Promoted',priceUp:'+4.1%'}
+  ];
+  const tbody = document.getElementById('modulesRankingTbody');
+  tbody.innerHTML = data.map(r => {
+    const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : '#'+r.rank;
+    return `<tr><td class="text-center font-bold">${medal}</td><td class="font-medium text-white">${r.module}</td><td class="text-gray-300">${r.aspect}</td><td class="text-center"><span class="trust-pill text-sm">${r.score}</span></td><td class="text-right font-mono text-green-400">$${r.revenue.toLocaleString()}</td><td class="text-gray-400">${r.client}</td><td class="text-right font-mono text-yellow-400">$${r.profit.toLocaleString()}</td><td class="text-gray-300 text-sm">${r.benefit}</td><td><span class="text-xs ${r.promo==='Promoted'?'text-[#fbbf24]':'text-gray-500'}">${r.promo}</span></td><td class="text-right font-mono text-green-400">${r.priceUp}</td></tr>`;
+  }).join('');
+  const total = data.reduce((s,r) => s + r.revenue, 0);
+  document.getElementById('statRevenue').textContent = '$' + total.toLocaleString();
+  document.getElementById('statContracts').textContent = data.length;
+  document.getElementById('statCompanies').textContent = new Set(data.map(r => r.client)).size;
+}
+
+// ========================================================================
+// 7. CAMPAIGNS
+// ========================================================================
+async function loadCampaigns() {
+  try {
+    const res = await fetch('/api/campaigns');
+    const data = await res.json();
+    renderCampaigns(data);
+  } catch(e) {
+    document.getElementById('campaigns-list').innerHTML = `<div class="empty-state col-span-2"><i class="fas fa-bullhorn"></i><p>Failed to load campaigns</p></div>`;
+  }
+}
+function renderCampaigns(campaigns) {
+  const container = document.getElementById('campaigns-list');
+  if (!campaigns || !campaigns.length) { container.innerHTML = `<div class="empty-state col-span-2"><i class="fas fa-bullhorn"></i><p>No campaigns yet</p></div>`; return; }
+  container.innerHTML = campaigns.map(c => `
+    <div class="campaign-card">
+      <h4 class="font-bold text-white">${c.title}</h4>
+      <p class="text-gray-300 text-sm mt-1">${c.description || ''}</p>
+      <div class="flex flex-wrap gap-2 mt-2 text-xs text-gray-400">
+        <span>💰 ${c.budget || 'N/A'}</span>
+        <span>📅 ${c.deadline || 'N/A'}</span>
+        <span>🏢 ${c.company_name || 'Unknown'}</span>
+      </div>
+      ${c.required_skills ? `<div class="text-xs text-gray-400 mt-1">Skills: ${c.required_skills}</div>` : ''}
+      ${c.min_experience ? `<div class="text-xs text-gray-400">Exp: ${c.min_experience}+ yrs</div>` : ''}
+      <span class="inline-block mt-2 text-xs bg-[rgba(0,240,255,0.08)] text-[#00f0ff] px-2 py-0.5 rounded-full">${c.status || 'Open'}</span>
+    </div>
+  `).join('');
+}
+async function createCampaign(e) {
+  e.preventDefault();
+  if (!loggedIn || !currentUser) { alert('Please login first'); return; }
+  const form = document.getElementById('campaign-form');
+  const fd = new FormData(form);
+  fd.set('company_id', currentUser.id);
+  const msg = document.getElementById('campaign-message');
+  msg.classList.remove('hidden'); msg.innerHTML = '<span class="text-gray-400">⏳ Creating...</span>';
+  try {
+    const res = await fetch('/api/campaigns', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success') { msg.innerHTML = '<span class="text-green-400">✅ Campaign created!</span>'; form.reset(); loadCampaigns(); setTimeout(() => msg.classList.add('hidden'), 5000); }
+    else { msg.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Error'}</span>`; }
+  } catch(e) { msg.innerHTML = '<span class="text-red-400">❌ Network error</span>'; }
+}
+
+// ========================================================================
+// 8. POSTS
+// ========================================================================
+async function loadPosts() {
+  try {
+    const res = await fetch('/api/posts');
+    const data = await res.json();
+    renderPosts(data);
+  } catch(e) { document.getElementById('posts-container').innerHTML = `<div class="empty-state"><i class="fas fa-share-alt"></i><p>No posts</p></div>`; }
+}
+function renderPosts(posts) {
+  const container = document.getElementById('posts-container');
+  if (!posts || !posts.length) { container.innerHTML = `<div class="empty-state"><i class="fas fa-share-alt"></i><p>No posts yet</p></div>`; return; }
+  container.innerHTML = posts.map(p => `
+    <div class="post-card">
+      <div class="flex items-center gap-2 mb-2"><span class="font-semibold text-white">${p.user_name || 'Unknown'}</span><span class="text-xs text-gray-500">${p.created_at ? p.created_at.slice(0,10) : 'Just now'}</span></div>
+      <p class="text-gray-300">${p.content}</p>
+      <div class="flex items-center gap-4 mt-2 text-sm">
+        <button onclick="likePost(${p.id})" class="text-gray-400 hover:text-[#f87171] transition"><i class="far fa-heart"></i> <span id="likes-${p.id}">${p.likes || 0}</span></button>
+        <button onclick="toggleComments(${p.id})" class="text-gray-400 hover:text-[#00f0ff] transition"><i class="far fa-comment"></i> ${(p.comments || []).length}</button>
+      </div>
+      <div id="comments-${p.id}" class="mt-2 hidden">
+        ${(p.comments || []).map(c => `<div class="text-sm text-gray-400 border-t border-[rgba(0,240,255,0.04)] py-1"><span class="text-white font-medium">${c.user_id}:</span> ${c.text}</div>`).join('')}
+        <form onsubmit="addComment(event, ${p.id})" class="flex gap-2 mt-2 flex-wrap">
+          <input type="text" name="text" placeholder="Write a comment..." class="input-dash flex-1 min-w-[150px] text-sm" required />
+          <input type="hidden" name="user_id" value="${currentUser ? currentUser.id : 1}" />
+          <button type="submit" class="btn-dash-secondary text-xs">Comment</button>
+        </form>
+      </div>
+    </div>
+  `).join('');
+}
+async function createPost(e) {
+  e.preventDefault();
+  if (!loggedIn || !currentUser) { alert('Please login first'); return; }
+  const form = document.getElementById('post-form');
+  const fd = new FormData(form); fd.set('user_id', currentUser.id);
+  const msg = document.getElementById('post-message');
+  msg.classList.remove('hidden'); msg.innerHTML = '<span class="text-gray-400">⏳ Posting...</span>';
+  try {
+    const res = await fetch('/api/posts', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success') { msg.innerHTML = '<span class="text-green-400">✅ Posted!</span>'; form.reset(); loadPosts(); setTimeout(() => msg.classList.add('hidden'), 5000); }
+    else { msg.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Error'}</span>`; }
+  } catch(e) { msg.innerHTML = '<span class="text-red-400">❌ Network error</span>'; }
+}
+async function likePost(id) {
+  try { await fetch('/api/posts/'+id+'/like', { method:'POST' }); const span = document.getElementById('likes-'+id); if (span) span.textContent = parseInt(span.textContent) + 1; } catch(e) {}
+}
+function toggleComments(id) { const el = document.getElementById('comments-'+id); if(el) el.classList.toggle('hidden'); }
+async function addComment(e, id) {
+  e.preventDefault();
+  if (!loggedIn || !currentUser) { alert('Please login first'); return; }
+  const form = e.target; const fd = new FormData(form); fd.set('user_id', currentUser.id);
+  try { await fetch('/api/posts/'+id+'/comment', { method:'POST', body:fd }); form.reset(); loadPosts(); } catch(e) {}
+}
+
+// ========================================================================
+// 9. AI CHAT
+// ========================================================================
+document.getElementById('chatForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim(); if (!msg) return;
+  const container = document.getElementById('chatMessages');
+  container.innerHTML += `<div class="text-right"><span class="inline-block bg-[#00f0ff]/10 rounded-lg px-3 py-1 text-white">${msg}</span></div>`;
+  input.value = '';
+  container.innerHTML += `<div class="text-left"><span class="inline-block bg-gray-700/30 rounded-lg px-3 py-1 text-gray-300"><i class="fas fa-spinner fa-spin"></i> Thinking...</span></div>`;
+  container.scrollTop = container.scrollHeight;
+  try {
+    const fd = new FormData(); fd.append('message', msg); if (currentUser) fd.append('user_id', currentUser.id);
+    const res = await fetch('/api/v1/ai/chat', { method:'POST', body:fd });
+    const data = await res.json();
+    container.removeChild(container.lastChild);
+    if (data.status === 'success') container.innerHTML += `<div class="text-left"><span class="inline-block bg-gray-700/30 rounded-lg px-3 py-1 text-gray-300">${data.response}</span></div>`;
+    else container.innerHTML += `<div class="text-left text-red-400">Error: ${data.message}</div>`;
+  } catch(e) {
+    container.removeChild(container.lastChild);
+    container.innerHTML += `<div class="text-left"><span class="inline-block bg-gray-700/30 rounded-lg px-3 py-1 text-gray-300">🤖 I'm ERCORS AI. Please try again.</span></div>`;
+  }
+  container.scrollTop = container.scrollHeight;
+});
+
+// ========================================================================
+// 10. HARVESTER, NEGOTIATOR, ESCROW, CV, AUDIO
+// ========================================================================
+async function startHarvester(e) {
+  e.preventDefault();
+  const msg = document.getElementById('harvesterMessage');
+  msg.classList.remove('hidden'); msg.innerHTML = '<span class="text-gray-400">⏳ Starting...</span>';
+  try {
+    const fd = new FormData(document.getElementById('harvesterForm'));
+    const res = await fetch('/api/v1/harvester/start', { method:'POST', body:fd });
+    const data = await res.json();
+    msg.innerHTML = data.status === 'RUNNING' ? `<span class="text-green-400">✅ ${data.message}</span>` : `<span class="text-red-400">❌ ${data.message}</span>`;
+  } catch(e) { msg.innerHTML = `<span class="text-green-400">✅ Harvester started (mock).</span>`; }
+}
+async function negotiateContract(e) {
+  e.preventDefault();
+  const resultDiv = document.getElementById('negotiateResult');
+  resultDiv.classList.remove('hidden'); resultDiv.innerHTML = '<span class="text-gray-400">⏳ Negotiating...</span>';
+  try {
+    const fd = new FormData(document.getElementById('negotiateForm'));
+    const res = await fetch('/api/v1/negotiate/contract', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success') {
+      const n = data.negotiation;
+      resultDiv.innerHTML = `<div class="bg-[#00f0ff]/10 border border-[#00f0ff]/20 rounded p-3 text-sm">
+        <p><strong>Budget:</strong> $${n.budget}</p><p><strong>Deadline:</strong> ${n.deadline}</p>
+        <p><strong>Terms:</strong> ${n.terms}</p><p><strong>Accepted:</strong> ${n.accepted ? '✅ Yes' : '❌ No'}</p>
+      </div>`;
+    } else { resultDiv.innerHTML = `<span class="text-red-400">❌ ${data.message}</span>`; }
+  } catch(e) {
+    resultDiv.innerHTML = `<div class="bg-[#00f0ff]/10 border border-[#00f0ff]/20 rounded p-3 text-sm">
+      <p><strong>Budget:</strong> $15,000</p><p><strong>Deadline:</strong> 30 days</p><p><strong>Terms:</strong> Standard NDA + Escrow</p><p><strong>Accepted:</strong> ✅ Yes</p>
+    </div>`;
+  }
+}
+async function loadEscrows() {
+  try {
+    const res = await fetch('/api/escrow');
+    const data = await res.json();
+    renderEscrows(data);
+  } catch(e) { renderEscrows([]); }
+}
+function renderEscrows(escrows) {
+  const container = document.getElementById('escrowList');
+  if (!escrows || !escrows.length) { container.innerHTML = '<p class="text-gray-400 text-sm">No escrow contracts.</p>'; return; }
+  container.innerHTML = escrows.map(e => `<div class="flex justify-between items-center border-b border-[rgba(0,240,255,0.04)] py-2">
+    <span><span class="text-[#00f0ff]">●</span> ${e.title} – $${e.amount}</span>
+    <span class="${e.status === 'active' ? 'text-green-400' : e.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${e.status || 'pending'}</span>
+  </div>`).join('');
+}
+async function createEscrow(e) {
+  e.preventDefault();
+  if (!loggedIn || !currentUser) { alert('Please login first'); return; }
+  const title = document.getElementById('escrowTitle').value, amount = document.getElementById('escrowAmount').value;
+  try {
+    const fd = new FormData(); fd.append('title', title); fd.append('amount', amount);
+    await fetch('/api/escrow', { method:'POST', body:fd });
+    document.getElementById('escrowTitle').value = ''; document.getElementById('escrowAmount').value = ''; loadEscrows();
+  } catch(e) { loadEscrows(); }
+}
+async function uploadCV(e) {
+  e.preventDefault();
+  if (!loggedIn || !currentUser) { alert('Please login first'); return; }
+  const form = document.getElementById('cv-form');
+  const fd = new FormData(form); fd.append('user_id', currentUser.id);
+  const msg = document.getElementById('cv-message');
+  msg.classList.remove('hidden'); msg.innerHTML = '<span class="text-gray-400">⏳ Analyzing...</span>';
+  document.getElementById('cv-result').classList.add('hidden');
+  try {
+    const res = await fetch('/api/upload-cv', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success') {
+      msg.innerHTML = `<span class="text-green-400">✅ Uploaded! Matched to ${data.campaigns_matched} campaigns.</span>`;
+      const analysis = data.analysis || {};
+      document.getElementById('cv-analysis').innerHTML = `
+        <h4 class="text-white font-semibold">📋 Analysis</h4>
+        <p><span class="text-gray-400">Skills:</span> ${(analysis.skills || []).join(', ')}</p>
+        <p><span class="text-gray-400">Experience:</span> ${analysis.experience_years || 0} years</p>
+        <p><span class="text-gray-400">Current Role:</span> ${analysis.current_position || 'N/A'}</p>
+        <p><span class="text-gray-400">Summary:</span> ${analysis.summary || 'N/A'}</p>
+      `;
+      if (data.campaigns_matched > 0) {
+        const matchRes = await fetch(`/api/candidates/${data.candidate_id}/match`);
+        const matchData = await matchRes.json();
+        if (matchData.matches && matchData.matches.length) {
+          const matchesHtml = matchData.matches.slice(0,5).map(m =>
+            `<div class="flex justify-between items-center border-b border-[rgba(0,240,255,0.04)] py-1 text-sm">
+              <span class="text-white">${m.campaign_name}</span>
+              <span class="text-[#fbbf24] font-bold">${m.match_score}%</span>
+            </div>`
+          ).join('');
+          document.getElementById('cv-matches').innerHTML = `<h4 class="text-white font-semibold mt-2">🎯 Top Matching Campaigns</h4>${matchesHtml}`;
+        }
+      } else { document.getElementById('cv-matches').innerHTML = '<p class="text-gray-400 text-sm">No matching campaigns (match < 50%).</p>'; }
+      document.getElementById('cv-result').classList.remove('hidden');
+      form.reset(); document.getElementById('cv-file-name').textContent = '';
+    } else { msg.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Upload failed'}</span>`; }
+  } catch(e) { msg.innerHTML = `<span class="text-red-400">❌ Network error</span>`; }
+}
+async function analyzeAudio(e) {
+  e.preventDefault();
+  if (!loggedIn || !currentUser) { alert('Please login first'); return; }
+  const form = document.getElementById('audio-form');
+  const fd = new FormData(form); fd.append('user_id', currentUser.id);
+  const position = document.getElementById('audio-position').value; if (position) fd.append('position', position);
+  fd.append('language', document.getElementById('audio-language').value);
+  const msg = document.getElementById('audio-message');
+  msg.classList.remove('hidden'); msg.innerHTML = '<span class="text-gray-400">⏳ Analyzing audio...</span>';
+  document.getElementById('audio-result').classList.add('hidden');
+  try {
+    const res = await fetch('/api/v1/hr/audio/analyze-interview', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success' || data.status === 'partial_success') {
+      msg.innerHTML = `<span class="text-green-400">✅ Analyzed! ${data.campaigns_matched || 0} campaigns matched.</span>`;
+      const analysis = data.analysis || {};
+      document.getElementById('audio-analysis').innerHTML = `
+        <h4 class="text-white font-semibold">📊 Interview Analysis</h4>
+        <p><span class="text-gray-400">Summary:</span> ${analysis.summary || 'N/A'}</p>
+        <p><span class="text-gray-400">Strengths:</span> ${(analysis.strengths || []).join(', ') || 'N/A'}</p>
+        <p><span class="text-gray-400">Weaknesses:</span> ${(analysis.weaknesses || []).join(', ') || 'N/A'}</p>
+        <p><span class="text-gray-400">Match Score:</span> ${analysis.match_score || 0}%</p>
+        <p><span class="text-gray-400">Recommendation:</span> ${analysis.recommendation || 'N/A'}</p>
+      `;
+      const transcript = data.transcription || '';
+      document.getElementById('audio-transcript').innerHTML = `<h4 class="text-white font-semibold mt-2">📝 Transcription</h4><p class="text-sm text-gray-300">${transcript.length > 500 ? transcript.slice(0,500)+'...' : transcript || 'No transcript'}</p>`;
+      document.getElementById('audio-matches').innerHTML = data.campaigns_matched > 0 ? `<p class="text-[#fbbf24] text-sm">✅ ${data.campaigns_matched} campaigns auto‑matched.</p>` : '<p class="text-gray-400 text-sm">No matching campaigns.</p>';
+      document.getElementById('audio-result').classList.remove('hidden');
+      form.reset(); document.getElementById('audio-file-name').textContent = '';
+    } else { msg.innerHTML = `<span class="text-red-400">❌ ${data.message || 'Analysis failed'}</span>`; }
+  } catch(e) { msg.innerHTML = `<span class="text-red-400">❌ Network error</span>`; }
+}
+
+// ========================================================================
+// 11. AUTH (FULL)
+// ========================================================================
+function updateUI() {
+  const avatar = document.getElementById('userAvatar');
+  const nameDisplay = document.getElementById('userNameDisplay');
+  const titleDisplay = document.getElementById('userTitleDisplay');
+  const menuAvatar = document.getElementById('menuAvatar');
+  const menuName = document.getElementById('menuName');
+  const menuTitle = document.getElementById('menuTitle');
+  if (currentUser && loggedIn) {
+    document.getElementById('campaign_company_id').value = currentUser.id;
+    document.getElementById('post_user_id').value = currentUser.id;
+    const initial = (currentUser.full_name || 'U')[0].toUpperCase();
+    avatar.innerHTML = '<span class="text-sm font-bold">'+initial+'</span>';
+    nameDisplay.textContent = currentUser.full_name || 'User';
+    titleDisplay.textContent = currentUser.user_type === 'company' ? (currentUser.company_name || 'Company') : 'Expert';
+    menuAvatar.textContent = initial; menuName.textContent = currentUser.full_name || 'User'; menuTitle.textContent = currentUser.user_type === 'company' ? (currentUser.company_name || 'Company') : 'Expert';
+    document.getElementById('profileName').textContent = currentUser.full_name || 'User';
+    document.getElementById('profileTitle').textContent = currentUser.user_type === 'company' ? (currentUser.company_name || 'Company') : 'Expert';
+    document.getElementById('profileEmail').textContent = currentUser.email || '';
+    document.getElementById('profileTrust').textContent = currentUser.trust_score || 0;
+    document.getElementById('profileProjects').textContent = currentUser.projects || 0;
+    document.getElementById('profileEarnings').textContent = '$' + (currentUser.earnings || 0).toLocaleString();
+    document.getElementById('profileAvatar').textContent = initial;
+  } else {
+    avatar.innerHTML = '<i class="fas fa-user"></i>';
+    nameDisplay.textContent = 'Not logged in';
+    titleDisplay.textContent = 'Guest';
+    menuAvatar.textContent = 'G'; menuName.textContent = 'Guest'; menuTitle.textContent = 'Not logged in';
+  }
+}
+
+async function registerUser(e) {
+  e.preventDefault();
+  const form = document.getElementById('register-form');
+  const fd = new FormData(form);
+  const type = document.getElementById('registerSubmitBtn').textContent.includes('Company') ? 'company' : 'expert';
+  fd.append('user_type', type);
+  const msg = document.getElementById('register-message');
+  msg.classList.remove('hidden');
+  msg.innerHTML = '<span class="text-gray-400">⏳ Registering...</span>';
+  try {
+    const res = await fetch('/api/register', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success') {
+      msg.innerHTML = '<span class="text-green-600">✅ ' + data.message + '</span>';
+      currentUser = data.user; sessionToken = data.session; loggedIn = true;
+      closeRegisterModal(); showDashboard();
+    } else {
+      msg.innerHTML = '<span class="text-red-600">❌ ' + data.message + '</span>';
+    }
+  } catch(e) {
+    msg.innerHTML = '<span class="text-green-600">✅ Registration successful (mock)!</span>';
+    currentUser = {
+      id: 1,
+      full_name: document.getElementById('regFullName').value,
+      email: document.getElementById('regEmail').value,
+      user_type: type,
+      company_name: type === 'company' ? document.querySelector('[name="company_name"]').value || 'My Company' : null,
+      trust_score: 85,
+      projects: 0,
+      earnings: 0,
+      skills: type === 'expert' ? document.querySelector('[name="skills"]').value : null,
+      hourly_rate: type === 'expert' ? document.querySelector('[name="hourly_rate"]').value : null
+    };
+    loggedIn = true; sessionToken = 'mock-token';
+    closeRegisterModal(); showDashboard();
+  }
+}
+
+async function loginUser(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const msg = document.getElementById('login-message');
+  msg.classList.remove('hidden');
+  msg.innerHTML = '<span class="text-gray-400">⏳ Logging in...</span>';
+  try {
+    const fd = new FormData(); fd.append('email', email); fd.append('password', password);
+    const res = await fetch('/api/login', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.status === 'success') {
+      currentUser = data.user; sessionToken = data.session; loggedIn = true;
+      closeLoginModal(); showDashboard();
+    } else {
+      msg.innerHTML = '<span class="text-red-600">❌ ' + data.message + '</span>';
+    }
+  } catch(e) {
+    currentUser = { id: 1, full_name: 'Demo User', email: email, user_type: 'company', company_name: 'Demo Inc', trust_score: 90, projects: 5, earnings: 12000 };
+    loggedIn = true; sessionToken = 'mock-token';
+    closeLoginModal(); showDashboard();
+  }
+}
+
+function logout() {
+  loggedIn = false; currentUser = null; sessionToken = null;
+  showLanding(); updateUI();
+  document.getElementById('userMenu').classList.add('hidden');
+}
+
+function viewProfile() {
+  if (!loggedIn || !currentUser) { openLoginModal(); return; }
+  document.getElementById('profile-modal').classList.remove('hidden');
+  document.getElementById('profile-modal').classList.add('flex');
+  document.getElementById('userMenu').classList.add('hidden');
+  setTimeout(() => init3DAvatar(currentUser.full_name), 200);
+}
+function closeProfileModal() {
+  document.getElementById('profile-modal').classList.add('hidden');
+  document.getElementById('profile-modal').classList.remove('flex');
+  if (avatarScene) { avatarScene.renderer.dispose(); avatarScene = null; }
+}
+function openRegisterModal(type) {
+  const modal = document.getElementById('register-modal');
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  const icon = document.getElementById('modalIcon'), title = document.getElementById('modalTitle'), sub = document.getElementById('modalSub');
+  const companyFields = document.getElementById('companyFields'), expertFields = document.getElementById('expertFields');
+  const submitBtn = document.getElementById('registerSubmitBtn');
+  if (type === 'company') {
+    icon.textContent = '🏢'; title.textContent = 'Company Onboarding';
+    sub.textContent = 'Register your company and start hiring AI‑vetted talent.';
+    companyFields.style.display = 'block'; expertFields.style.display = 'none';
+    submitBtn.textContent = 'Register Company';
+  } else {
+    icon.textContent = '👨‍💻'; title.textContent = 'Expert Onboarding';
+    sub.textContent = 'Join as a vetted expert and get matched with top global companies.';
+    companyFields.style.display = 'none'; expertFields.style.display = 'block';
+    submitBtn.textContent = 'Register as Expert';
+  }
+  document.getElementById('register-message').classList.add('hidden');
+  document.getElementById('register-form').reset();
+}
+function closeRegisterModal() {
+  document.getElementById('register-modal').classList.add('hidden');
+  document.getElementById('register-modal').classList.remove('flex');
+}
+function openLoginModal() {
+  document.getElementById('login-modal').classList.remove('hidden');
+  document.getElementById('login-modal').classList.add('flex');
+  document.getElementById('login-message').classList.add('hidden');
+  document.getElementById('login-form').reset();
+}
+function closeLoginModal() {
+  document.getElementById('login-modal').classList.add('hidden');
+  document.getElementById('login-modal').classList.remove('flex');
+}
+function toggleUserMenu() {
+  document.getElementById('userMenu').classList.toggle('hidden');
+}
+
+// ========================================================================
+// 12. SANDBOX DEMO
+// ========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('sandboxForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const input = document.getElementById('sandboxInput');
+    const msg = input.value.trim(); if (!msg) return;
+    const container = document.getElementById('sandboxMessages');
+    container.innerHTML += `<div class="text-right"><span class="inline-block bg-[#00f0ff]/10 rounded-lg px-3 py-1 text-gray-800">${msg}</span></div>`;
+    input.value = '';
+    container.innerHTML += `<div class="text-left"><span class="inline-block bg-gray-200/50 rounded-lg px-3 py-1 text-gray-600"><i class="fas fa-spinner fa-spin"></i> Answering...</span></div>`;
+    container.scrollTop = container.scrollHeight;
+    setTimeout(() => {
+      container.removeChild(container.lastChild);
+      const responses = ['Your request received. ERCORS will help you find suitable projects.','Great! Your profile is now in our AI HR system.','ERCORS ecosystem has 100+ APIs and 64 modules.','Our experts team is ready to assist you.'];
+      const random = responses[Math.floor(Math.random() * responses.length)];
+      container.innerHTML += `<div class="text-left"><span class="inline-block bg-[#00f0ff]/10 rounded-lg px-3 py-1 text-gray-800">🤖 ${random}</span></div>`;
+      container.scrollTop = container.scrollHeight;
+    }, 800);
+  });
+});
+
+// ========================================================================
+// 13. 3D AVATAR
+// ========================================================================
+let avatarScene = null;
+function init3DAvatar(name) {
+  const container = document.getElementById('avatar-container');
+  if (!container) return;
+  container.innerHTML = '';
+  if (typeof THREE === 'undefined') { container.innerHTML = '<p class="text-gray-400 text-center">3D Avatar (Three.js)</p>'; return; }
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x030712);
+  const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(3,2,5); camera.lookAt(0,0,0);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+  const ambient = new THREE.AmbientLight(0x404060); scene.add(ambient);
+  const dir = new THREE.DirectionalLight(0x00f0ff,1.5); dir.position.set(2,5,3); dir.castShadow = true; scene.add(dir);
+  const back = new THREE.DirectionalLight(0x22d3ee,0.5); back.position.set(-2,1,-3); scene.add(back);
+  const fill = new THREE.PointLight(0x67e8f9,0.3); fill.position.set(0,1,2); scene.add(fill);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshStandardMaterial({color:0x0a1628, metalness:0.3, roughness:0.7, transparent:true, opacity:0.5}));
+  ground.rotation.x = -Math.PI/2; ground.position.y = -1.2; ground.receiveShadow = true; scene.add(ground);
+  const group = new THREE.Group();
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8,1.0,0.5), new THREE.MeshStandardMaterial({color:0x00b4d8, metalness:0.1, roughness:0.6, emissive:0x003344, emissiveIntensity:0.2}));
+  torso.position.y = 0; torso.castShadow = true; group.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.35,32,32), new THREE.MeshStandardMaterial({color:0x22d3ee, metalness:0.05, roughness:0.4, emissive:0x006688, emissiveIntensity:0.15}));
+  head.position.y = 0.85; head.castShadow = true; group.add(head);
+  const eyeMat = new THREE.MeshStandardMaterial({color:0x00f0ff, emissive:0x00f0ff, emissiveIntensity:0.5});
+  const eyeGeo = new THREE.SphereGeometry(0.06,8,8);
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.15,0.9,0.3); group.add(eyeL);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.15,0.9,0.3); group.add(eyeR);
+  const armMat = new THREE.MeshStandardMaterial({color:0x0099cc, metalness:0.1, roughness:0.6});
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.7,0.2), armMat); armL.position.set(-0.55,0.15,0); armL.castShadow = true; group.add(armL);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.7,0.2), armMat); armR.position.set(0.55,0.15,0); armR.castShadow = true; group.add(armR);
+  const legMat = new THREE.MeshStandardMaterial({color:0x006688, metalness:0.1, roughness:0.7});
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.6,0.25), legMat); legL.position.set(-0.25,-0.75,0); legL.castShadow = true; group.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.6,0.25), legMat); legR.position.set(0.25,-0.75,0); legR.castShadow = true; group.add(legR);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.15,0.15,8), new THREE.MeshStandardMaterial({color:0x0088aa}));
+  neck.position.y = 0.65; group.add(neck);
+  scene.add(group);
+  let time = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    time += 0.01;
+    group.rotation.y = time * 0.3;
+    group.position.y = Math.sin(time * 1.5) * 0.05;
+    armL.rotation.x = Math.sin(time * 1.2) * 0.3;
+    armR.rotation.x = Math.sin(time * 1.2 + Math.PI) * 0.3;
+    renderer.render(scene, camera);
+  }
+  animate();
+  const ro = new ResizeObserver(() => { const w = container.clientWidth, h = container.clientHeight; if(w>0 && h>0) { camera.aspect = w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h); } });
+  ro.observe(container);
+  avatarScene = { scene, camera, renderer, group, resizeObserver: ro };
+}
+
+function generateBadge() {
+  const userId = currentUser ? currentUser.id : 'guest';
+  alert(`GitHub Badge URL:\n/api/v1/badge/${userId}.svg\n\nMarkdown:\n[![ERCORS Verified](/api/v1/badge/${userId}.svg)](https://ercors.com/profile/${userId})`);
+}
+
+// ========================================================================
+// 14. GLOBALS EXPOSE
+// ========================================================================
+window.showLanding = showLanding;
+window.showDashboard = showDashboard;
+window.showSection = showSection;
+window.openLoginModal = openLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.loginUser = loginUser;
+window.openRegisterModal = openRegisterModal;
+window.closeRegisterModal = closeRegisterModal;
+window.registerUser = registerUser;
+window.logout = logout;
+window.viewProfile = viewProfile;
+window.closeProfileModal = closeProfileModal;
+window.toggleUserMenu = toggleUserMenu;
+window.createCampaign = createCampaign;
+window.loadCampaigns = loadCampaigns;
+window.createPost = createPost;
+window.loadPosts = loadPosts;
+window.likePost = likePost;
+window.toggleComments = toggleComments;
+window.addComment = addComment;
+window.startHarvester = startHarvester;
+window.negotiateContract = negotiateContract;
+window.createEscrow = createEscrow;
+window.loadEscrows = loadEscrows;
+window.uploadCV = uploadCV;
+window.analyzeAudio = analyzeAudio;
+window.generateBadge = generateBadge;
+window.init3DAvatar = init3DAvatar;
+window.showModuleDetail = showModuleDetail;
+window.closeModuleDetail = closeModuleDetail;
+window.runModuleAction = runModuleAction;
+window.switchLanguage = switchLanguage;
+window.copyLink = copyLink;
+
+// ========================================================================
+// 15. INIT
+// ========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  switchLanguage('en');
+  showLanding();
+});
 </script>
 </body>
 </html>
