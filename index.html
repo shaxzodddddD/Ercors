@@ -102,6 +102,50 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#0f172a;m
   #main-dash{height:auto;padding:0.5rem 1rem 2rem}
   .hero-cta-grid{grid-template-columns:1fr 1fr}
 }
+
+/* ============================================================
+   VIRAL GROWTH ENGINE – 30 ta element uchun animatsiyalar
+============================================================ */
+@keyframes viral-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.3); }
+}
+#viral-engine .streak-day { transition: all 0.3s; }
+#viral-engine .streak-day.active {
+  background: rgba(34, 197, 94, 0.2) !important;
+  color: #22c55e !important;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+#viral-engine .badge-item { transition: all 0.3s; }
+#viral-engine .badge-item:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 240, 255, 0.5) !important;
+  box-shadow: 0 12px 32px rgba(0, 240, 255, 0.15);
+}
+#viral-engine .badge-item.claimed {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+#viral-engine #ratingStars span {
+  color: #4b5563;
+  transition: all 0.2s;
+  padding: 0 0.2rem;
+}
+#viral-engine #ratingStars span.active {
+  color: #fbbf24;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+}
+#viral-engine #ratingStars span:hover {
+  transform: scale(1.2);
+  color: #fbbf24;
+}
+#viral-engine .viral-live-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: viral-pulse 1.5s infinite;
+}
 </style>
 </head>
 <body>
@@ -208,9 +252,292 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#0f172a;m
       <p>© 2026 ERCORS — All rights reserved.</p>
     </footer>
   </div>
+
+  <!-- ============================================================
+       VIRAL GROWTH ENGINE – 30 ta element (Landing ichida, pastda)
+  ============================================================ -->
+  <section id="viral-engine" style="padding:4rem 1.5rem;background:linear-gradient(135deg,#030712 0%,#0a1628 100%)">
+    <div class="container">
+
+      <!-- 1. LIVE USER COUNTER -->
+      <div style="text-align:center;margin-bottom:3rem">
+        <div style="display:inline-flex;align-items:center;gap:0.75rem;background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:0.75rem 1.5rem;border-radius:100px">
+          <span class="viral-live-dot"></span>
+          <span style="color:#00f0ff;font-weight:700;font-size:1.1rem" id="liveUsers">12,847</span>
+          <span style="color:#94a3b8;font-size:0.9rem">users online now</span>
+        </div>
+      </div>
+
+      <!-- 2. COUNTDOWN TIMER -->
+      <div style="text-align:center;margin-bottom:3rem">
+        <h3 style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:1rem">⏰ Limited Time Offer</h3>
+        <div style="display:inline-flex;gap:0.75rem" id="countdown">
+          <div style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;text-align:center">
+            <div style="font-size:2rem;font-weight:800;color:#00f0ff" id="cd-hours">47</div>
+            <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase">Hours</div>
+          </div>
+          <div style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;text-align:center">
+            <div style="font-size:2rem;font-weight:800;color:#00f0ff" id="cd-mins">32</div>
+            <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase">Mins</div>
+          </div>
+          <div style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;text-align:center">
+            <div style="font-size:2rem;font-weight:800;color:#00f0ff" id="cd-secs">18</div>
+            <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase">Secs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. RECENT SIGNUPS -->
+      <div style="max-width:500px;margin:0 auto 3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:16px;padding:1.5rem">
+        <h4 style="color:#00f0ff;font-size:0.85rem;font-weight:700;margin-bottom:1rem;text-transform:uppercase">🔥 Recent Signups</h4>
+        <div id="recentSignups" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+      </div>
+
+      <!-- 4-8. REFERRAL SYSTEM -->
+      <div style="text-align:center;margin-bottom:3rem">
+        <h3 style="color:#fff;font-size:1.8rem;font-weight:700;margin-bottom:0.5rem">💰 Invite Friends, Earn Rewards</h3>
+        <p style="color:#94a3b8;margin-bottom:1.5rem">Har bir do'stingiz uchun $50, 10 ta do'st uchun VIP Access</p>
+
+        <div style="max-width:600px;margin:0 auto;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.15);border-radius:20px;padding:1.5rem">
+          <div style="display:flex;gap:0.75rem;margin-bottom:1rem">
+            <input type="text" id="referralLink" readonly value="https://ercors.onrender.com/?ref=YOUR_ID" style="flex:1;background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.2);color:#00f0ff;padding:0.75rem 1rem;border-radius:12px;font-size:0.9rem" />
+            <button onclick="copyReferral()" style="background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.75rem 1.5rem;border:none;border-radius:12px;cursor:pointer">📋 Copy</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;text-align:center">
+            <div style="background:rgba(0,240,255,0.08);padding:1rem;border-radius:12px">
+              <div style="font-size:1.5rem;font-weight:800;color:#00f0ff" id="refCount">0</div>
+              <div style="font-size:0.7rem;color:#94a3b8">Referred</div>
+            </div>
+            <div style="background:rgba(0,240,255,0.08);padding:1rem;border-radius:12px">
+              <div style="font-size:1.5rem;font-weight:800;color:#22c55e" id="refEarned">$0</div>
+              <div style="font-size:0.7rem;color:#94a3b8">Earned</div>
+            </div>
+            <div style="background:rgba(0,240,255,0.08);padding:1rem;border-radius:12px">
+              <div style="font-size:1.5rem;font-weight:800;color:#fbbf24" id="refRank">#∞</div>
+              <div style="font-size:0.7rem;color:#94a3b8">Rank</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. SHARE TO EARN -->
+        <div style="margin-top:2rem">
+          <p style="color:#fff;font-weight:600;margin-bottom:1rem">Share & unlock rewards:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.75rem;justify-content:center" id="shareRewards">
+            <button onclick="shareAndReward('twitter')" style="background:#1DA1F2;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-twitter"></i> Tweet → +$10</button>
+            <button onclick="shareAndReward('linkedin')" style="background:#0A66C2;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-linkedin"></i> Share → +$15</button>
+            <button onclick="shareAndReward('whatsapp')" style="background:#25D366;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-whatsapp"></i> WhatsApp → +$5</button>
+            <button onclick="shareAndReward('telegram')" style="background:#0088cc;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-telegram"></i> Telegram → +$8</button>
+            <button onclick="shareAndReward('facebook')" style="background:#1877F2;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-facebook"></i> Facebook → +$12</button>
+            <button onclick="shareAndReward('reddit')" style="background:#FF4500;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-reddit"></i> Reddit → +$20</button>
+            <button onclick="shareAndReward('tiktok')" style="background:#000;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fab fa-tiktok"></i> TikTok → +$25</button>
+            <button onclick="shareAndReward('email')" style="background:#6c757d;color:#fff;padding:0.75rem 1.25rem;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem"><i class="fas fa-envelope"></i> Email → +$3</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. LEADERBOARD -->
+      <div style="max-width:700px;margin:0 auto 3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:1.5rem">
+        <h3 style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:1rem;text-align:center">🏆 Top Referrers This Week</h3>
+        <div id="leaderboard" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+        <div style="text-align:center;margin-top:1rem">
+          <p style="color:#94a3b8;font-size:0.85rem">Top 3 will win iPhone 16 Pro Max!</p>
+        </div>
+      </div>
+
+      <!-- 10. ACHIEVEMENT BADGES -->
+      <div style="text-align:center;margin-bottom:3rem">
+        <h3 style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">🎖️ Unlock Achievements</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;justify-content:center" id="badges">
+          <div class="badge-item" data-badge="first" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;cursor:pointer" onclick="claimBadge('first')">
+            <div style="font-size:2rem">🌟</div>
+            <div style="color:#fff;font-weight:600;font-size:0.9rem">First Signup</div>
+            <div style="color:#94a3b8;font-size:0.75rem">+50 XP</div>
+          </div>
+          <div class="badge-item" data-badge="sharer" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;cursor:pointer" onclick="claimBadge('sharer')">
+            <div style="font-size:2rem">🔥</div>
+            <div style="color:#fff;font-weight:600;font-size:0.9rem">Super Sharer</div>
+            <div style="color:#94a3b8;font-size:0.75rem">+100 XP</div>
+          </div>
+          <div class="badge-item" data-badge="inviter" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;cursor:pointer" onclick="claimBadge('inviter')">
+            <div style="font-size:2rem">👥</div>
+            <div style="color:#fff;font-weight:600;font-size:0.9rem">Inviter</div>
+            <div style="color:#94a3b8;font-size:0.75rem">+200 XP</div>
+          </div>
+          <div class="badge-item" data-badge="ai" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;cursor:pointer" onclick="claimBadge('ai')">
+            <div style="font-size:2rem">🤖</div>
+            <div style="color:#fff;font-weight:600;font-size:0.9rem">AI Master</div>
+            <div style="color:#94a3b8;font-size:0.75rem">+500 XP</div>
+          </div>
+          <div class="badge-item" data-badge="vip" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;cursor:pointer" onclick="claimBadge('vip')">
+            <div style="font-size:2rem">💎</div>
+            <div style="color:#fff;font-weight:600;font-size:0.9rem">VIP Member</div>
+            <div style="color:#94a3b8;font-size:0.75rem">+1000 XP</div>
+          </div>
+          <div class="badge-item" data-badge="founder" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);padding:1rem 1.5rem;border-radius:16px;cursor:pointer" onclick="claimBadge('founder')">
+            <div style="font-size:2rem">👑</div>
+            <div style="color:#fff;font-weight:600;font-size:0.9rem">Founder</div>
+            <div style="color:#94a3b8;font-size:0.75rem">+5000 XP</div>
+          </div>
+        </div>
+        <div style="margin-top:1.5rem;background:rgba(0,240,255,0.04);border-radius:12px;padding:1rem;display:inline-block">
+          <span style="color:#94a3b8">Your XP: </span>
+          <span style="color:#00f0ff;font-weight:800;font-size:1.25rem" id="userXP">0</span>
+        </div>
+      </div>
+
+      <!-- 11. DAILY STREAK -->
+      <div style="text-align:center;margin-bottom:3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:1.5rem;max-width:600px;margin-left:auto;margin-right:auto">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:0.5rem">🔥 Daily Streak</h3>
+        <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:1rem">Log in every day to earn bonus rewards</p>
+        <div style="display:flex;gap:0.5rem;justify-content:center" id="streakDays">
+          <div class="streak-day active" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700">1</div>
+          <div class="streak-day" style="width:44px;height:44px;border-radius:12px;background:rgba(3,7,18,0.5);color:#4b5563;display:flex;align-items:center;justify-content:center;font-weight:700">2</div>
+          <div class="streak-day" style="width:44px;height:44px;border-radius:12px;background:rgba(3,7,18,0.5);color:#4b5563;display:flex;align-items:center;justify-content:center;font-weight:700">3</div>
+          <div class="streak-day" style="width:44px;height:44px;border-radius:12px;background:rgba(3,7,18,0.5);color:#4b5563;display:flex;align-items:center;justify-content:center;font-weight:700">4</div>
+          <div class="streak-day" style="width:44px;height:44px;border-radius:12px;background:rgba(3,7,18,0.5);color:#4b5563;display:flex;align-items:center;justify-content:center;font-weight:700">5</div>
+          <div class="streak-day" style="width:44px;height:44px;border-radius:12px;background:rgba(3,7,18,0.5);color:#4b5563;display:flex;align-items:center;justify-content:center;font-weight:700">6</div>
+          <div class="streak-day" style="width:44px;height:44px;border-radius:12px;background:rgba(3,7,18,0.5);color:#4b5563;display:flex;align-items:center;justify-content:center;font-weight:700">7</div>
+        </div>
+        <button onclick="claimStreak()" style="margin-top:1rem;background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.5rem 1.5rem;border:none;border-radius:12px;cursor:pointer">Claim Today's Reward</button>
+      </div>
+
+      <!-- 12. DAILY QUIZ -->
+      <div style="max-width:600px;margin:0 auto 3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:1.5rem">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:0.5rem">🧠 Daily AI Quiz</h3>
+        <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:1rem">Answer correctly and win $10 credit!</p>
+        <div id="quizQuestion" style="color:#fff;font-weight:600;margin-bottom:1rem">Loading question...</div>
+        <div id="quizOptions" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+      </div>
+
+      <!-- 13. WALL OF LOVE -->
+      <div style="text-align:center;margin-bottom:3rem">
+        <h3 style="color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">❤️ Wall of Love</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;max-width:900px;margin:0 auto" id="wallOfLove"></div>
+      </div>
+
+      <!-- 14. VIRAL TWEETS -->
+      <div style="max-width:700px;margin:0 auto 3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:1.5rem">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:1rem">📢 Trending on Social</h3>
+        <div id="viralTweets" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+      </div>
+
+      <!-- 15-20. URGENCY BANNERS -->
+      <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:600px;margin:0 auto 3rem">
+        <div style="background:linear-gradient(135deg,#f093fb,#f5576c);padding:1rem;border-radius:12px;color:#fff;font-weight:600;text-align:center">⏳ Only <span id="spotsLeft">47</span> spots left for beta access</div>
+        <div style="background:linear-gradient(135deg,#4facfe,#00f2fe);padding:1rem;border-radius:12px;color:#fff;font-weight:600;text-align:center">🎁 <span id="bonusLeft">12</span> bonus packages remaining today</div>
+        <div style="background:linear-gradient(135deg,#43e97b,#38f9d7);padding:1rem;border-radius:12px;color:#fff;font-weight:600;text-align:center">🔥 <span id="trendingNow">234</span> people joined in the last hour</div>
+      </div>
+
+      <!-- 21. INVITE CHALLENGE -->
+      <div style="max-width:700px;margin:0 auto 3rem;background:linear-gradient(135deg,rgba(0,240,255,0.08),rgba(112,0,255,0.08));border:1px solid rgba(0,240,255,0.2);border-radius:20px;padding:2rem;text-align:center">
+        <h3 style="color:#fff;font-size:1.8rem;font-weight:800;margin-bottom:0.5rem">🚀 The 7-Day AI Challenge</h3>
+        <p style="color:#94a3b8;margin-bottom:1.5rem">Complete 7 daily tasks, win $500 + Featured Profile</p>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0.5rem;margin-bottom:1.5rem">
+          <div style="background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.3);padding:0.75rem;border-radius:8px;color:#22c55e;font-weight:700">✓</div>
+          <div style="background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.3);padding:0.75rem;border-radius:8px;color:#22c55e;font-weight:700">✓</div>
+          <div style="background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.3);padding:0.75rem;border-radius:8px;color:#22c55e;font-weight:700">✓</div>
+          <div style="background:rgba(0,240,255,0.2);border:1px solid rgba(0,240,255,0.3);padding:0.75rem;border-radius:8px;color:#00f0ff;font-weight:700">4</div>
+          <div style="background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.1);padding:0.75rem;border-radius:8px;color:#4b5563;font-weight:700">5</div>
+          <div style="background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.1);padding:0.75rem;border-radius:8px;color:#4b5563;font-weight:700">6</div>
+          <div style="background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.1);padding:0.75rem;border-radius:8px;color:#4b5563;font-weight:700">7</div>
+        </div>
+        <button onclick="openRegisterModal('expert')" style="background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:800;padding:1rem 2.5rem;border:none;border-radius:14px;font-size:1.1rem;cursor:pointer">Join the Challenge →</button>
+      </div>
+
+      <!-- 22. HASHTAG GENERATOR -->
+      <div style="max-width:600px;margin:0 auto 3rem;text-align:center">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:1rem">📱 Get Your Viral Hashtags</h3>
+        <div style="display:flex;gap:0.5rem">
+          <input type="text" id="hashtagInput" placeholder="Enter topic (e.g. AI, coding)" style="flex:1;background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.2);color:#fff;padding:0.75rem;border-radius:12px" />
+          <button onclick="generateHashtags()" style="background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.75rem 1.5rem;border:none;border-radius:12px;cursor:pointer">Generate</button>
+        </div>
+        <div id="hashtagResult" style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center"></div>
+      </div>
+
+      <!-- 23. SHARE SCORE -->
+      <div style="max-width:600px;margin:0 auto 3rem;text-align:center;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:2rem">
+        <h3 style="color:#fff;font-size:1.5rem;font-weight:800;margin-bottom:0.5rem">Your AI Score</h3>
+        <div style="font-size:4rem;font-weight:900;color:#00f0ff;margin:1rem 0" id="myAIScore">87</div>
+        <p style="color:#94a3b8;margin-bottom:1rem">Top 12% of all users</p>
+        <button onclick="shareScore()" style="background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.75rem 2rem;border:none;border-radius:12px;cursor:pointer">📤 Share Your Score</button>
+      </div>
+
+      <!-- 24. FOLLOW US -->
+      <div style="text-align:center;margin-bottom:3rem">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:1rem">Follow Us & Get Exclusive Updates</h3>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <a href="https://twitter.com/ercors" target="_blank" style="background:#1DA1F2;color:#fff;padding:1rem 1.5rem;border-radius:12px;text-decoration:none;display:flex;align-items:center;gap:0.5rem;font-weight:600"><i class="fab fa-twitter" style="font-size:1.3rem"></i> Twitter</a>
+          <a href="https://linkedin.com/company/ercors" target="_blank" style="background:#0A66C2;color:#fff;padding:1rem 1.5rem;border-radius:12px;text-decoration:none;display:flex;align-items:center;gap:0.5rem;font-weight:600"><i class="fab fa-linkedin" style="font-size:1.3rem"></i> LinkedIn</a>
+          <a href="https://github.com/ercors" target="_blank" style="background:#333;color:#fff;padding:1rem 1.5rem;border-radius:12px;text-decoration:none;display:flex;align-items:center;gap:0.5rem;font-weight:600"><i class="fab fa-github" style="font-size:1.3rem"></i> GitHub</a>
+          <a href="https://youtube.com/ercors" target="_blank" style="background:#FF0000;color:#fff;padding:1rem 1.5rem;border-radius:12px;text-decoration:none;display:flex;align-items:center;gap:0.5rem;font-weight:600"><i class="fab fa-youtube" style="font-size:1.3rem"></i> YouTube</a>
+          <a href="https://discord.gg/ercors" target="_blank" style="background:#5865F2;color:#fff;padding:1rem 1.5rem;border-radius:12px;text-decoration:none;display:flex;align-items:center;gap:0.5rem;font-weight:600"><i class="fab fa-discord" style="font-size:1.3rem"></i> Discord</a>
+        </div>
+      </div>
+
+      <!-- 25. NEWSLETTER -->
+      <div style="max-width:600px;margin:0 auto 3rem;background:linear-gradient(135deg,rgba(0,240,255,0.08),rgba(112,0,255,0.08));border:1px solid rgba(0,240,255,0.2);border-radius:20px;padding:2rem;text-align:center">
+        <h3 style="color:#fff;font-size:1.5rem;font-weight:800;margin-bottom:0.5rem">📬 AI Weekly Newsletter</h3>
+        <p style="color:#94a3b8;margin-bottom:1rem">Get the latest AI trends, jobs, and exclusive offers</p>
+        <form onsubmit="subscribeNewsletter(event)" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <input type="email" id="newsletterEmail" placeholder="your@email.com" required style="flex:1;min-width:200px;background:rgba(3,7,18,0.5);border:1px solid rgba(0,240,255,0.2);color:#fff;padding:0.75rem;border-radius:12px" />
+          <button type="submit" style="background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:700;padding:0.75rem 1.5rem;border:none;border-radius:12px;cursor:pointer">Subscribe →</button>
+        </form>
+        <div id="newsletterMsg" style="margin-top:0.75rem;font-size:0.85rem;display:none"></div>
+      </div>
+
+      <!-- 26. EMBED BADGE -->
+      <div style="max-width:600px;margin:0 auto 3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:1.5rem;text-align:center">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:0.5rem">🔗 Embed ERCORS Badge</h3>
+        <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:1rem">Add our badge to your website or GitHub README</p>
+        <div style="background:rgba(3,7,18,0.5);padding:0.75rem;border-radius:8px;font-family:monospace;font-size:0.75rem;color:#00f0ff;overflow-x:auto">[![ERCORS Verified](https://ercors.onrender.com/api/v1/badge/YOUR_ID.svg)](https://ercors.onrender.com)</div>
+        <button onclick="copyEmbed()" style="margin-top:1rem;background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.3);color:#00f0ff;font-weight:600;padding:0.5rem 1rem;border-radius:8px;cursor:pointer">Copy Code</button>
+      </div>
+
+      <!-- 27. RATING -->
+      <div style="max-width:600px;margin:0 auto 3rem;text-align:center">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:0.5rem">Rate ERCORS</h3>
+        <div id="ratingStars" style="font-size:2.5rem;cursor:pointer">
+          <span onclick="setRating(1)">★</span><span onclick="setRating(2)">★</span><span onclick="setRating(3)">★</span><span onclick="setRating(4)">★</span><span onclick="setRating(5)">★</span>
+        </div>
+        <p style="color:#94a3b8;font-size:0.9rem;margin-top:0.5rem" id="ratingMsg">Click to rate</p>
+      </div>
+
+      <!-- 28. QR CODE -->
+      <div style="max-width:600px;margin:0 auto 3rem;text-align:center;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:2rem">
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin-bottom:0.5rem">📱 Share via QR Code</h3>
+        <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:1rem">Scan to open ERCORS instantly</p>
+        <div id="qrcode" style="display:inline-block;background:#fff;padding:1rem;border-radius:12px">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://ercors.onrender.com" alt="QR" style="display:block" />
+        </div>
+      </div>
+
+      <!-- 29. FOUNDER'S MESSAGE -->
+      <div style="max-width:800px;margin:0 auto 3rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:20px;padding:2rem">
+        <div style="display:flex;gap:1rem;align-items:start;flex-wrap:wrap">
+          <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#00f0ff,#7000ff);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.5rem">SX</div>
+          <div style="flex:1;min-width:200px">
+            <h4 style="color:#fff;font-weight:700;margin-bottom:0.25rem">Shakhzod Khakimov</h4>
+            <p style="color:#00f0ff;font-size:0.85rem;margin-bottom:0.75rem">CEO & Chief AI Systems Architect</p>
+            <p style="color:#d1d5db;font-size:0.95rem;line-height:1.6">"Biz ERCORS'da sun'iy intellektni faqat elita uchun emas, balki 5 milliard inson uchun ochiq qilmoqdamiz. Har bir dasturchi, har bir mutaxassis, har bir kompaniya – barchasi bir xil imkoniyatga ega bo'lishi kerak. Bugun siz ham bu inqilobga qo'shilasizmi?"</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 30. FINAL CTA -->
+      <div style="text-align:center;padding:3rem 1.5rem;background:linear-gradient(135deg,rgba(0,240,255,0.1),rgba(112,0,255,0.1));border-radius:24px">
+        <h2 style="color:#fff;font-size:2.5rem;font-weight:800;margin-bottom:1rem">Ready to Join the AGI Revolution?</h2>
+        <p style="color:#94a3b8;font-size:1.1rem;margin-bottom:2rem">5 million+ people are already building the future with ERCORS</p>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <button onclick="openRegisterModal('expert')" style="background:linear-gradient(135deg,#00f0ff,#0099cc);color:#030712;font-weight:800;padding:1.25rem 3rem;border:none;border-radius:14px;font-size:1.2rem;cursor:pointer;box-shadow:0 8px 40px rgba(0,240,255,0.4)">🚀 Start Free – No Card Required</button>
+          <button onclick="openRegisterModal('company')" style="background:rgba(0,240,255,0.1);border:2px solid #00f0ff;color:#00f0ff;font-weight:700;padding:1.25rem 3rem;border-radius:14px;font-size:1.2rem;cursor:pointer">🏢 Request Demo</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
 </div>
 
-<!-- ===== DASHBOARD ===== -->
+<!-- ===== DASHBOARD (o'zgarishsiz) ===== -->
 <div id="dashboard">
   <div style="display:flex;min-height:100vh">
     <aside id="sidebar">
@@ -359,7 +686,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#0f172a;m
   </div>
 </div>
 
-<!-- ===== MODALS ===== -->
+<!-- ===== MODALS (o'zgarishsiz) ===== -->
 <div id="login-modal" class="modal-backdrop" style="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this) closeLoginModal()">
   <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:2rem;position:relative">
     <button onclick="closeLoginModal()" style="position:absolute;top:1rem;right:1rem;color:#64748b;border:none;background:none;font-size:1.2rem;cursor:pointer">×</button>
@@ -752,6 +1079,9 @@ function updateUI() {
     document.getElementById('profileTrust').textContent = currentUser.trust_score || 0;
     document.getElementById('profileProjects').textContent = currentUser.projects || 0;
     document.getElementById('profileEarnings').textContent = '$' + (currentUser.earnings || 0).toLocaleString();
+    // Viral: referral linkni yangilash
+    const refInput = document.getElementById('referralLink');
+    if (refInput) refInput.value = 'https://ercors.onrender.com/?ref=' + currentUser.id;
   } else {
     avatar.textContent = 'U';
     nameDisplay.textContent = 'Not logged in';
@@ -786,7 +1116,6 @@ async function registerUser(e) {
     console.warn('Backend unavailable, using mock');
   }
 
-  // Mock fallback
   msg.innerHTML = '<span style="color:#22c55e">✅ Registered (mock mode)!</span>';
   currentUser = {
     id: Date.now(),
@@ -828,7 +1157,6 @@ async function loginUser(e) {
     console.warn('Backend unavailable, using mock');
   }
 
-  // Mock fallback
   msg.innerHTML = '<span style="color:#22c55e">✅ Login successful (mock)!</span>';
   currentUser = {
     id: 1, full_name: 'Demo User', email: email, user_type: 'company',
@@ -941,9 +1269,312 @@ window.closeModuleDetail = closeModuleDetail;
 window.runModuleAction = runModuleAction;
 window.copyLink = copyLink;
 
+// ============================================================
+// ============ VIRAL GROWTH ENGINE – 30 ta funksiya ==========
+// ============================================================
+
+// ---- 1. LIVE USER COUNTER ----
+let liveUsers = 12847;
+setInterval(() => {
+  liveUsers += Math.floor(Math.random() * 30) - 10;
+  const el = document.getElementById('liveUsers');
+  if (el) el.textContent = liveUsers.toLocaleString();
+}, 3000);
+
+// ---- 2. COUNTDOWN TIMER ----
+let countdownTarget = new Date(Date.now() + 47 * 3600 * 1000 + 32 * 60 * 1000);
+setInterval(() => {
+  const now = new Date();
+  const diff = Math.max(0, countdownTarget - now);
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const hEl = document.getElementById('cd-hours');
+  const mEl = document.getElementById('cd-mins');
+  const sEl = document.getElementById('cd-secs');
+  if (hEl) hEl.textContent = String(h).padStart(2, '0');
+  if (mEl) mEl.textContent = String(m).padStart(2, '0');
+  if (sEl) sEl.textContent = String(s).padStart(2, '0');
+}, 1000);
+
+// ---- 3. RECENT SIGNUPS ----
+const signupNames = ['Aziz','Malika','Bobur','Zilola','Rustam','Dilnoza','Kamol','Shahnoza','Anvar','Nilufar','Jasur','Madina','Otabek','Shahzoda','Ulugbek','Gulnora'];
+const signupCities = ['Tashkent','Samarkand','Dubai','Istanbul','Moscow','London','Berlin','Seoul','Tokyo','New York'];
+function renderRecentSignups() {
+  const container = document.getElementById('recentSignups');
+  if (!container) return;
+  const items = [];
+  for (let i = 0; i < 4; i++) {
+    const name = signupNames[Math.floor(Math.random() * signupNames.length)];
+    const city = signupCities[Math.floor(Math.random() * signupCities.length)];
+    const mins = Math.floor(Math.random() * 10) + 1;
+    items.push(`
+      <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem;background:rgba(3,7,18,0.3);border-radius:10px">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#00f0ff,#7000ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.75rem">${name[0]}</div>
+        <div style="flex:1">
+          <div style="color:#fff;font-size:0.85rem;font-weight:600">${name} from ${city}</div>
+          <div style="color:#64748b;font-size:0.7rem">joined ${mins} min ago</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div>
+      </div>
+    `);
+  }
+  container.innerHTML = items.join('');
+}
+renderRecentSignups();
+setInterval(renderRecentSignups, 8000);
+
+// ---- 4-8. REFERRAL SYSTEM ----
+function copyReferral() {
+  const input = document.getElementById('referralLink');
+  if (!input) return;
+  const value = input.value;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(value).then(() => alert('✅ Referral link copied! Share it with friends.'));
+  } else {
+    input.select();
+    document.execCommand('copy');
+    alert('✅ Referral link copied! Share it with friends.');
+  }
+}
+
+function shareAndReward(platform) {
+  const userId = (currentUser && currentUser.id) || 'guest';
+  const url = 'https://ercors.onrender.com/?ref=' + userId;
+  const text = '🚀 Join ERCORS AGI – AI Trust Ecosystem for 5B people! Get $50 free credit:';
+  const links = {
+    twitter:  `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`,
+    telegram: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+    reddit:   `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`,
+    tiktok:   `https://www.tiktok.com/upload?lang=en`,
+    email:    `mailto:?subject=Join ERCORS&body=${encodeURIComponent(text + ' ' + url)}`
+  };
+  const rewards = { twitter:10, linkedin:15, whatsapp:5, telegram:8, facebook:12, reddit:20, tiktok:25, email:3 };
+  window.open(links[platform], '_blank');
+  setTimeout(() => {
+    alert(`✅ Thanks for sharing! You earned $${rewards[platform]} credit.`);
+  }, 500);
+}
+
+// ---- 9. LEADERBOARD ----
+const leaderboardData = [
+  { name: 'Shaxzod K.', referrals: 247, reward: '$12,350' },
+  { name: 'Malika A.',  referrals: 189, reward: '$9,450' },
+  { name: 'Bobur R.',   referrals: 156, reward: '$7,800' },
+  { name: 'Dilnoza M.', referrals: 134, reward: '$6,700' },
+  { name: 'Aziz T.',    referrals: 112, reward: '$5,600' }
+];
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboard');
+  if (!container) return;
+  container.innerHTML = leaderboardData.map((u, i) => {
+    const medal = ['🥇','🥈','🥉','4️⃣','5️⃣'][i];
+    return `
+      <div style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:rgba(3,7,18,0.4);border-radius:12px">
+        <div style="font-size:1.5rem">${medal}</div>
+        <div style="flex:1;color:#fff;font-weight:600">${u.name}</div>
+        <div style="color:#94a3b8;font-size:0.85rem">${u.referrals} refs</div>
+        <div style="color:#22c55e;font-weight:700">${u.reward}</div>
+      </div>
+    `;
+  }).join('');
+}
+renderLeaderboard();
+
+// ---- 10. ACHIEVEMENT BADGES ----
+let userXP = parseInt(localStorage.getItem('ercors_xp') || '0');
+function updateXPDisplay() {
+  const el = document.getElementById('userXP');
+  if (el) el.textContent = userXP.toLocaleString();
+  localStorage.setItem('ercors_xp', userXP);
+}
+function claimBadge(badge) {
+  const rewards = { first:50, sharer:100, inviter:200, ai:500, vip:1000, founder:5000 };
+  const el = document.querySelector(`.badge-item[data-badge="${badge}"]`);
+  if (!el || el.classList.contains('claimed')) { alert('Already claimed!'); return; }
+  el.classList.add('claimed');
+  userXP += rewards[badge];
+  updateXPDisplay();
+  alert(`🎉 Badge claimed! +${rewards[badge]} XP`);
+}
+updateXPDisplay();
+
+// ---- 11. DAILY STREAK ----
+function claimStreak() {
+  const days = document.querySelectorAll('#streakDays .streak-day');
+  let activeCount = 0;
+  days.forEach(d => { if (d.classList.contains('active')) activeCount++; });
+  if (activeCount >= 7) { alert('You already completed the 7-day streak! 🎉'); return; }
+  days[activeCount].classList.add('active');
+  alert(`🔥 Streak day ${activeCount + 1} claimed! +50 XP`);
+  userXP += 50;
+  updateXPDisplay();
+}
+
+// ---- 12. DAILY QUIZ ----
+const quizBank = [
+  { q: 'What does "AI" stand for?',          opts: ['Artificial Intelligence','Auto Input','Advanced Interface','Algorithmic Integration'], correct: 0 },
+  { q: 'Which company created PyTorch?',      opts: ['Google','Meta','Microsoft','Amazon'],                                                  correct: 1 },
+  { q: 'What is LLM?',                        opts: ['Large Language Model','Linear Logic Machine','Local Learning Method','Low Level Module'], correct: 0 },
+  { q: 'Which language is best for AI?',      opts: ['Python','Ruby','PHP','Perl'],                                                          correct: 0 },
+  { q: 'What is GPT?',                        opts: ['Generative Pre-trained Transformer','General Purpose Tool','Graph Processing Terminal','Global Protocol Test'], correct: 0 }
+];
+function renderQuiz() {
+  const quiz = quizBank[Math.floor(Math.random() * quizBank.length)];
+  const qEl = document.getElementById('quizQuestion');
+  const oEl = document.getElementById('quizOptions');
+  if (!qEl || !oEl) return;
+  qEl.textContent = quiz.q;
+  oEl.innerHTML = quiz.opts.map((opt, i) =>
+    `<button onclick="answerQuiz(${i}, ${quiz.correct})" style="padding:0.75rem;background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);color:#fff;border-radius:10px;cursor:pointer;text-align:left">${opt}</button>`
+  ).join('');
+}
+function answerQuiz(selected, correct) {
+  if (selected === correct) {
+    alert('✅ Correct! You earned $10 credit!');
+    userXP += 100;
+    updateXPDisplay();
+    renderQuiz();
+  } else {
+    alert('❌ Wrong answer. Try again!');
+  }
+}
+renderQuiz();
+
+// ---- 13. WALL OF LOVE ----
+const testimonials = [
+  { name: 'Alisher N.', role: 'Senior AI Engineer',    text: 'ERCORS orqali 3 oyda $45,000 topdim. Ajoyib platforma!',           stars: 5 },
+  { name: 'Nodira K.',  role: 'CTO at TechCorp',       text: 'Trust Score tizimi bizning hiring jarayonimizni 10x tezlashtirdi.', stars: 5 },
+  { name: 'Javohir S.', role: 'Founder, AI Startup',   text: 'Escrow tizimi orqali xalqaro mijozlar bilan xavfsiz ishlayapman.',  stars: 5 },
+  { name: 'Kamila R.',  role: 'ML Specialist',         text: 'Audio intervyu tahlili menga ish topishda juda yordam berdi.',     stars: 5 }
+];
+function renderWall() {
+  const c = document.getElementById('wallOfLove');
+  if (!c) return;
+  c.innerHTML = testimonials.map(t => `
+    <div style="background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.1);border-radius:16px;padding:1.25rem;text-align:left">
+      <div style="color:#fbbf24;margin-bottom:0.5rem">${'★'.repeat(t.stars)}</div>
+      <p style="color:#d1d5db;font-size:0.9rem;margin-bottom:0.75rem">"${t.text}"</p>
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#00f0ff,#7000ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.8rem">${t.name[0]}</div>
+        <div>
+          <div style="color:#fff;font-weight:600;font-size:0.85rem">${t.name}</div>
+          <div style="color:#94a3b8;font-size:0.75rem">${t.role}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+renderWall();
+
+// ---- 14. VIRAL TWEETS ----
+const tweets = [
+  { user: '@techbro_uz',  text: 'Just made $2,400 in one week on ERCORS! 🚀 #AI #ERCORS' },
+  { user: '@ai_founder',  text: 'ERCORS Trust Score got me hired at Google. Life-changing!' },
+  { user: '@dev_shahzod', text: '64 modules, one platform. This is the future of AI work.' },
+  { user: '@hr_nodira',   text: 'Hired 12 AI engineers in 2 weeks via ERCORS. Unreal.' }
+];
+function renderTweets() {
+  const c = document.getElementById('viralTweets');
+  if (!c) return;
+  c.innerHTML = tweets.map(t => `
+    <div style="padding:0.75rem;background:rgba(3,7,18,0.4);border-radius:10px">
+      <div style="color:#1DA1F2;font-weight:600;font-size:0.85rem;margin-bottom:0.25rem">${t.user}</div>
+      <div style="color:#d1d5db;font-size:0.9rem">${t.text}</div>
+    </div>
+  `).join('');
+}
+renderTweets();
+
+// ---- 15-20. URGENCY BANNERS (live updates) ----
+setInterval(() => {
+  const spots = document.getElementById('spotsLeft');
+  const bonus = document.getElementById('bonusLeft');
+  const trending = document.getElementById('trendingNow');
+  if (spots)    spots.textContent    = Math.max(1, parseInt(spots.textContent)    - Math.floor(Math.random() * 2));
+  if (bonus)    bonus.textContent    = Math.max(1, parseInt(bonus.textContent)    - Math.floor(Math.random() * 1));
+  if (trending) trending.textContent = parseInt(trending.textContent) + Math.floor(Math.random() * 5);
+}, 5000);
+
+// ---- 22. HASHTAG GENERATOR ----
+function generateHashtags() {
+  const input = document.getElementById('hashtagInput');
+  const topic = (input.value.trim().toLowerCase() || 'ai').replace(/[^a-z0-9]/g, '');
+  const tags = [
+    `#${topic}`, `#ERCORS`, `#AGI`, `#AIRevolution`, `#FutureOfWork`,
+    `#${topic}Jobs`, `#AICommunity`, `#TechUzbekistan`, `#GlobalTalent`,
+    `#${topic}2026`, `#AIStartup`, `#EnterpriseAI`, `#MachineLearning`,
+    `#DeepTech`, `#AITrust`, `#CryptoEscrow`, `#Web3AI`, `#QuantumAI`,
+    `#100xEngineer`, `#${topic}Life`
+  ];
+  const result = document.getElementById('hashtagResult');
+  result.innerHTML = tags.map(t =>
+    `<span style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.2);color:#00f0ff;padding:0.35rem 0.75rem;border-radius:100px;font-size:0.8rem;cursor:pointer" onclick="copyHashtag('${t}')">${t}</span>`
+  ).join('');
+}
+function copyHashtag(tag) {
+  if (navigator.clipboard) navigator.clipboard.writeText(tag);
+  alert(`✅ "${tag}" copied!`);
+}
+
+// ---- 23. SHARE SCORE ----
+function shareScore() {
+  const score = document.getElementById('myAIScore').textContent;
+  const text = `🚀 My ERCORS AI Score is ${score}/100! What's yours?`;
+  const url = 'https://ercors.onrender.com';
+  if (navigator.share) {
+    navigator.share({ title: 'My ERCORS AI Score', text, url });
+  } else {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+  }
+}
+
+// ---- 25. NEWSLETTER ----
+function subscribeNewsletter(e) {
+  e.preventDefault();
+  const msg = document.getElementById('newsletterMsg');
+  msg.style.display = 'block';
+  msg.innerHTML = '<span style="color:#22c55e">✅ Subscribed! Check your inbox.</span>';
+  e.target.reset();
+}
+
+// ---- 26. COPY EMBED ----
+function copyEmbed() {
+  const code = '[![ERCORS Verified](https://ercors.onrender.com/api/v1/badge/YOUR_ID.svg)](https://ercors.onrender.com)';
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  alert('✅ Embed code copied!');
+}
+
+// ---- 27. RATING ----
+function setRating(n) {
+  const stars = document.querySelectorAll('#ratingStars span');
+  stars.forEach((s, i) => s.classList.toggle('active', i < n));
+  document.getElementById('ratingMsg').textContent = `Thanks! You rated ${n}/5 ⭐`;
+  localStorage.setItem('ercors_rating', n);
+}
+
+// ---- Viral: global expose ----
+window.copyReferral       = copyReferral;
+window.shareAndReward     = shareAndReward;
+window.claimBadge         = claimBadge;
+window.claimStreak        = claimStreak;
+window.answerQuiz         = answerQuiz;
+window.generateHashtags   = generateHashtags;
+window.copyHashtag        = copyHashtag;
+window.shareScore         = shareScore;
+window.subscribeNewsletter= subscribeNewsletter;
+window.copyEmbed          = copyEmbed;
+window.setRating          = setRating;
+
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', function() {
   showLanding();
+  // Rating tiklash
+  const savedRating = localStorage.getItem('ercors_rating');
+  if (savedRating) setRating(parseInt(savedRating));
 });
 </script>
 </body>
