@@ -1402,3 +1402,330 @@ if __name__ == "__main__":
     print(f"🔑 Groq keys: {len(groq.keys)}")
     print(f"🗄️  DB: {DATABASE_URL}")
     uvicorn.run(app, host="0.0.0.0", port=PORT)
+# ═══════════════════════════════════════════════════════════
+#  ADMIN: USER DATA EXPORT
+# ═══════════════════════════════════════════════════════════
+
+import csv
+from io import StringIO
+from fastapi.responses import StreamingResponse
+
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "ercors-admin-2026")
+
+
+def check_admin(secret: str):
+    if secret != ADMIN_SECRET:
+        raise HTTPException(403, "Forbidden: invalid admin secret")
+
+
+# ---- 1. View all users (JSON) ----
+@app.get("/api/admin/users")
+async def admin_list_users(
+    secret: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    check_admin(secret)
+    users = db.query(User).order_by(desc(User.id)).all()
+    return JSONResponse({
+        "total": len(users),
+        "users": [_user_dict(u) for u in users],
+    })
+
+
+# ---- 2. Export users to CSV ----
+@app.get("/api/admin/users/export/csv")
+async def admin_export_csv(
+    secret: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    check_admin(secret)
+    users = db.query(User).order_by(User.id).all()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID", "Full Name", "Email", "User Type", "Company", "Industry",
+        "Skills", "Hourly Rate", "GitHub", "Trust Score", "XP", "Level",
+        "Projects", "Earnings", "Referral Code", "Referred Count",
+        "Referral Earnings", "Streak Days", "Registered At", "Last Login"
+    ])
+    for u in users:
+        writer.writerow([
+            u.id, u.full_name, u.email, u.user_type, u.company_name or "",
+            u.industry or "", u.skills or "", u.hourly_rate or "", u.github or "",
+            u.trust_score, u.xp, u.level, u.projects, u.earnings,
+            u.referral_code or "", u.referred_count, u.referral_earnings,
+            u.streak_days,
+            u.registered_at.isoformat() if u.registered_at else "",
+            u.last_login.isoformat() if u.last_login else "",
+        ])
+
+    output.seek(0)
+    filename = f"ercors_users_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ---- 3. Export users to JSON ----
+@app.get("/api/admin/users/export/json")
+async def admin_export_json(
+    secret: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    check_admin(secret)
+    users = db.query(User).order_by(User.id).all()
+    filename = f"ercors_users_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+
+    data = json.dumps(
+        {
+            "exported_at": datetime.utcnow().isoformat(),
+            "total": len(users),
+            "users": [_user_dict(u) for u in users],
+        },
+        indent=2, ensure_ascii=False,
+    )
+    return StreamingResponse(
+        iter([data]),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ---- 4. Export to Excel (XLSX) ----
+@app.get("/api/admin/users/export/xlsx")
+async def admin_export_xlsx(
+    secret: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    check_admin(secret)
+    try:
+        from openpyxl import Workbook
+    except ImportError:
+        raise HTTPException(500, "openpyxl not installed. Add it to requirements.txt")
+
+    users = db.query(User).order_by(User.id).all()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Users"
+
+    headers = [
+        "ID", "Full Name", "Email", "User Type", "Company", "Industry",
+        "Skills", "Hourly Rate", "GitHub", "Trust Score", "XP", "Level",
+        "Projects", "Earnings", "Referral Code", "Referred Count",
+        "Referral Earnings", "Streak Days", "Registered At", "Last Login"
+    ]
+    ws.append(headers)
+    for u in users:
+        ws.append([
+            u.id, u.full_name, u.email, u.user_type, u.company_name or "",
+            u.industry or "", u.skills or "", u.hourly_rate or "", u.github or "",
+            u.trust_score, u.xp, u.level, u.projects, u.earnings,
+            u.referral_code or "", u.referred_count, u.referral_earnings,
+            u.streak_days,
+            u.registered_at.isoformat() if u.registered_at else "",
+            u.last_login.isoformat() if u.last_login else "",
+        ])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"ercors_users_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ---- 5. Export campaigns, posts, escrows, interviews ----
+@app.get("/api/admin/export/all")
+async def admin_export_all(
+    secret: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    check_admin(secret)
+
+    users = db.query(User).all()
+    campaigns = db.query(Campaign).all()
+    posts = db.query(Post).all()
+    escrows = db.query(Escrow).all()
+    interviews = db.query(Interview).all()
+    candidates = db.query(Candidate).all()
+    newsletter = db.query(NewsletterSub).all()
+
+    data = {
+        "exported_at": datetime.utcnow().isoformat(),
+        "counts": {
+            "users": len(users),
+            "campaigns": len(campaigns),
+            "posts": len(posts),
+            "escrows": len(escrows),
+            "interviews": len(interviews),
+            "candidates": len(candidates),
+            "newsletter": len(newsletter),
+        },
+        "users": [_user_dict(u) for u in users],
+        "campaigns": [
+            {"id": c.id, "name": c.name, "description": c.description,
+             "budget": c.budget, "user_id": c.user_id}
+            for c in campaigns
+        ],
+        "posts": [
+            {"id": p.id, "user_id": p.user_id, "content": p.content,
+             "likes": p.likes}
+            for p in posts
+        ],
+        "escrows": [
+            {"id": e.id, "user_id": e.user_id, "title": e.title,
+             "amount": e.amount, "status": e.status}
+            for e in escrows
+        ],
+        "interviews": [
+            {"id": i.id, "user_id": i.user_id, "position": i.position,
+             "score": i.score, "recommendation": i.recommendation}
+            for i in interviews
+        ],
+        "candidates": [
+            {"id": c.id, "full_name": c.full_name, "skills": c.skills,
+             "experience_years": c.experience_years}
+            for c in candidates
+        ],
+        "newsletter": [{"email": n.email} for n in newsletter],
+    }
+
+    filename = f"ercors_full_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    return StreamingResponse(
+        iter([json.dumps(data, indent=2, ensure_ascii=False)]),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ---- 6. Admin dashboard (HTML) ----
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(secret: str = Query("")):
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ERCORS Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="bg-slate-900 text-white min-h-screen p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-2">🛠️ ERCORS Admin Panel</h1>
+    <p class="text-slate-400 mb-8">Foydalanuvchi ma'lumotlarini ko'rish va yuklab olish</p>
+
+    <div class="bg-slate-800 rounded-2xl p-6 mb-6">
+      <label class="block text-sm mb-2">Admin Secret:</label>
+      <input id="secretInput" type="text" value="{secret}"
+             class="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 mb-4" />
+      <button onclick="loadStats()"
+              class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold px-6 py-3 rounded-lg">
+        Load Stats
+      </button>
+    </div>
+
+    <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
+
+    <div class="bg-slate-800 rounded-2xl p-6 mb-6">
+      <h2 class="text-xl font-bold mb-4">📥 Export Data</h2>
+      <div class="flex flex-wrap gap-3">
+        <button onclick="download('csv')" class="bg-green-500 text-white font-bold px-4 py-2 rounded-lg">
+          <i class="fas fa-file-csv"></i> Download CSV
+        </button>
+        <button onclick="download('json')" class="bg-blue-500 text-white font-bold px-4 py-2 rounded-lg">
+          <i class="fas fa-file-code"></i> Download JSON
+        </button>
+        <button onclick="download('xlsx')" class="bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg">
+          <i class="fas fa-file-excel"></i> Download Excel
+        </button>
+        <button onclick="downloadAll()" class="bg-purple-500 text-white font-bold px-4 py-2 rounded-lg">
+          <i class="fas fa-database"></i> Full Backup
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-slate-800 rounded-2xl p-6">
+      <h2 class="text-xl font-bold mb-4">👥 All Users</h2>
+      <div id="usersTable" class="overflow-x-auto"></div>
+    </div>
+  </div>
+
+<script>
+function getSecret() {{
+  return document.getElementById('secretInput').value;
+}}
+
+async function loadStats() {{
+  const s = getSecret();
+  try {{
+    const r = await fetch('/api/admin/users?secret=' + encodeURIComponent(s));
+    const d = await r.json();
+    if (d.total === undefined) {{
+      document.getElementById('stats').innerHTML = '<div class="col-span-4 text-red-400">Error: ' + (d.message || 'Forbidden') + '</div>';
+      return;
+    }}
+    document.getElementById('stats').innerHTML = `
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-cyan-400">${{d.total}}</div>
+        <div class="text-xs text-slate-400">Total Users</div>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-yellow-400">${{d.users.filter(u => u.user_type === 'company').length}}</div>
+        <div class="text-xs text-slate-400">Companies</div>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-green-400">${{d.users.filter(u => u.user_type === 'expert').length}}</div>
+        <div class="text-xs text-slate-400">Experts</div>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-purple-400">${{d.users.reduce((a,u) => a + u.xp, 0)}}</div>
+        <div class="text-xs text-slate-400">Total XP</div>
+      </div>
+    `;
+    let rows = d.users.map(u => `
+      <tr class="border-b border-slate-700">
+        <td class="p-2">${{u.id}}</td>
+        <td class="p-2">${{u.full_name}}</td>
+        <td class="p-2 text-cyan-400">${{u.email}}</td>
+        <td class="p-2">${{u.user_type}}</td>
+        <td class="p-2">${{u.company_name || '-'}}</td>
+        <td class="p-2">${{u.trust_score}}</td>
+        <td class="p-2">${{u.xp}}</td>
+      </tr>
+    `).join('');
+    document.getElementById('usersTable').innerHTML = `
+      <table class="w-full text-sm">
+        <thead class="bg-slate-700">
+          <tr><th class="p-2 text-left">ID</th><th class="p-2 text-left">Name</th>
+          <th class="p-2 text-left">Email</th><th class="p-2 text-left">Type</th>
+          <th class="p-2 text-left">Company</th><th class="p-2 text-left">Trust</th>
+          <th class="p-2 text-left">XP</th></tr>
+        </thead>
+        <tbody>${{rows}}</tbody>
+      </table>
+    `;
+  }} catch(e) {{
+    alert('Error: ' + e.message);
+  }}
+}}
+
+function download(format) {{
+  const s = getSecret();
+  window.open('/api/admin/users/export/' + format + '?secret=' + encodeURIComponent(s));
+}}
+
+function downloadAll() {{
+  const s = getSecret();
+  window.open('/api/admin/export/all?secret=' + encodeURIComponent(s));
+}}
+</script>
+</body>
+</html>
+    """)
