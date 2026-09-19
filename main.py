@@ -1,12 +1,13 @@
 """
 ═══════════════════════════════════════════════════════════════════════════════
-ERCORS v13 — AI Meta-Platform Backend
-FastAPI + SQLite · Production Ready · Fully Working
+ERCORS v13 — Render.com Production Backend
+FastAPI + SQLite + WebSocket · Zero-config deploy
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
 import os
 import re
+import sys
 import json
 import time
 import base64
@@ -21,26 +22,42 @@ from contextlib import asynccontextmanager
 
 from fastapi import (
     FastAPI, Request, HTTPException, Depends, Form,
-    UploadFile, File, WebSocket, WebSocketDisconnect
+    UploadFile, File, WebSocket, WebSocketDisconnect, status
 )
-from fastapi.responses import HTMLResponse, JSONResponse, Response, FileResponse
+from fastapi.responses import (
+    HTMLResponse, JSONResponse, Response, FileResponse, PlainTextResponse
+)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CONFIG
+# CONFIG (Render-friendly, all via env vars)
 # ═══════════════════════════════════════════════════════════════════════════
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "ercors.db"
+
+# SQLite on Render: use /tmp for ephemeral, or persistent disk mounted at /var/data
+DATA_DIR = Path(os.getenv("DATA_DIR", "/tmp" if os.getenv("RENDER") else str(BASE_DIR)))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "ercors.db"
+
 INDEX_HTML = BASE_DIR / "index.html"
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(64))
+TOKEN_EXPIRY_HOURS = int(os.getenv("TOKEN_EXPIRY_HOURS", "168"))
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", str(20 * 1024 * 1024)))
 
-TOKEN_EXPIRY_HOURS = 24 * 7
-MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
+PORT = int(os.getenv("PORT", "8000"))
+HOST = os.getenv("HOST", "0.0.0.0")
 
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
+# ─── Logging ───
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
+    stream=sys.stdout,
 )
 log = logging.getLogger("ercors")
 
@@ -50,10 +67,11 @@ log = logging.getLogger("ercors")
 # ═══════════════════════════════════════════════════════════════════════════
 
 def db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
@@ -83,7 +101,6 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     last_login TEXT
 );
-
 CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL,
@@ -91,65 +108,38 @@ CREATE TABLE IF NOT EXISTS sessions (
     expires_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
 CREATE TABLE IF NOT EXISTS campaigns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id INTEGER,
-    title TEXT NOT NULL,
-    description TEXT,
-    required_skills TEXT,
-    min_experience REAL,
-    budget TEXT,
-    deadline TEXT,
-    status TEXT DEFAULT 'Open',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    company_id INTEGER, title TEXT NOT NULL, description TEXT,
+    required_skills TEXT, min_experience REAL, budget TEXT, deadline TEXT,
+    status TEXT DEFAULT 'Open', created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    user_name TEXT,
-    content TEXT NOT NULL,
-    likes INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    user_id INTEGER, user_name TEXT, content TEXT NOT NULL,
+    likes INTEGER DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS escrows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    title TEXT NOT NULL,
-    amount REAL NOT NULL,
-    status TEXT DEFAULT 'active',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    user_id INTEGER, title TEXT NOT NULL, amount REAL NOT NULL,
+    status TEXT DEFAULT 'active', created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS badges (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    badge_key TEXT NOT NULL,
+    user_id INTEGER, badge_key TEXT NOT NULL,
     claimed_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, badge_key)
 );
-
 CREATE TABLE IF NOT EXISTS bounties (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    company TEXT,
-    prize INTEGER,
-    severity TEXT,
-    deadline TEXT,
-    claimed_by INTEGER,
-    claimed_at TEXT
+    id TEXT PRIMARY KEY, title TEXT NOT NULL, company TEXT,
+    prize INTEGER, severity TEXT, deadline TEXT,
+    claimed_by INTEGER, claimed_at TEXT
 );
-
 CREATE TABLE IF NOT EXISTS chat_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    role TEXT,
-    message TEXT,
+    user_id INTEGER, role TEXT, message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
@@ -161,7 +151,6 @@ def init_db():
     try:
         conn.executescript(SCHEMA)
         conn.commit()
-        # Seed bounties
         if conn.execute("SELECT COUNT(*) c FROM bounties").fetchone()["c"] == 0:
             bounties = [
                 ("b1", "Fix RAG hallucination bug", "OpenAI", 5000, "critical", "2h"),
@@ -172,30 +161,28 @@ def init_db():
                 ("b6", "Create LLM eval dataset", "Hugging Face", 2000, "high", "1d"),
             ]
             conn.executemany(
-                "INSERT INTO bounties (id, title, company, prize, severity, deadline) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO bounties (id,title,company,prize,severity,deadline) VALUES (?,?,?,?,?,?)",
                 bounties,
             )
-        # Seed demo posts
         if conn.execute("SELECT COUNT(*) c FROM posts").fetchone()["c"] == 0:
             conn.executemany(
                 "INSERT INTO posts (user_name, content, likes) VALUES (?,?,?)",
                 [
-                    ("Ali Karimov", "ERCORS yangi loyiha boshlandi! 🚀", 12),
-                    ("ERCORS Admin", "84 modul yangilandi! Endi ishlaydi ✅", 34),
+                    ("Ali Karimov", "ERCORS ishga tushdi! 🚀", 12),
+                    ("ERCORS Admin", "84 modul LIVE ✅", 34),
                 ],
             )
-        # Seed demo campaigns
         if conn.execute("SELECT COUNT(*) c FROM campaigns").fetchone()["c"] == 0:
             conn.executemany(
-                """INSERT INTO campaigns (title, description, budget, deadline, company_name, required_skills)
-                   VALUES (?,?,?,?,?,?)""",
+                """INSERT INTO campaigns (title,description,budget,deadline,required_skills)
+                   VALUES (?,?,?,?,?)""",
                 [
-                    ("AI Chatbot Development", "Autonomous AI chatbot", "$15,000", "2026-12-01", "TechCorp", "python,llm,fastapi"),
-                    ("Quantum Cryptography", "Post-Quantum security", "$25,000", "2026-11-15", "QuantumSecure", "python,quantum,crypto"),
+                    ("AI Chatbot Development", "Autonomous chatbot", "$15,000", "2026-12-01", "python,llm,fastapi"),
+                    ("Quantum Cryptography", "PQ security", "$25,000", "2026-11-15", "python,quantum"),
                 ],
             )
         conn.commit()
-        log.info("✅ Database ready at %s", DB_PATH)
+        log.info("✅ DB ready at %s", DB_PATH)
     finally:
         conn.close()
 
@@ -204,76 +191,76 @@ def init_db():
 # 84 MODULES
 # ═══════════════════════════════════════════════════════════════════════════
 
-_MODULE_DEFS = [
-    ("m1","Enterprise AI Talent Matching","Core","AI-powered 1-second talent-to-job matching."),
-    ("m2","Managed RLHF & Data Annotation","Core","Human-in-the-loop reinforcement learning."),
-    ("m3","AI Hiring SaaS & Trust Score","Core","Trust score 0-100 with AI verification."),
-    ("m4","Global Escrow & B2B Contracts","Core","Zero-risk payouts with escrow."),
+_MODULES_RAW = [
+    ("m1","Enterprise AI Talent Matching","Core","1-second talent-to-job matching."),
+    ("m2","Managed RLHF & Data Annotation","Core","Human-in-the-loop RL."),
+    ("m3","AI Hiring SaaS & Trust Score","Core","Trust score 0-100."),
+    ("m4","Global Escrow & B2B Contracts","Core","Zero-risk payouts."),
     ("m5","Micro-Equity HFT Engine","Core","Sub-second micro-equity trading."),
-    ("m6","AI Vetted Engineers","Talent Sourcing","Pre-verified senior AI engineers."),
-    ("m7","AI & ML Specialists","Talent Sourcing","Deep-learning specialists pool."),
+    ("m6","AI Vetted Engineers","Talent Sourcing","Pre-verified engineers."),
+    ("m7","AI & ML Specialists","Talent Sourcing","DL specialists."),
     ("m8","Autonomous AI Agents & Swarm","Talent Sourcing","Multi-agent orchestration."),
-    ("m9","Embedded & Edge AI Hardware","Talent Sourcing","On-device AI inference."),
-    ("m10","Quantum Computing & Security","Talent Sourcing","Post-quantum cryptography."),
-    ("m11","RLHF & Model Evaluation","Data & Training","Model output grading."),
-    ("m12","Code Data Annotation","Data & Training","Annotated code datasets."),
-    ("m13","Multimodal Data Sourcing","Data & Training","Vision-language-text datasets."),
-    ("m14","Red Teaming & AI Safety","Data & Training","Adversarial AI testing."),
-    ("m15","AI Voice/Video Interview Bot","Hiring Tools","Automated interview with sentiment."),
-    ("m16","Code Assessment Engine","Hiring Tools","Real-time code evaluation."),
-    ("m17","Background & Trust Score","Hiring Tools","Identity and reputation checks."),
-    ("m18","AI Skill Graph Analyzer","Hiring Tools","Skill graph and gap analysis."),
-    ("m19","Dedicated Remote Teams","Direct & Premium","Managed remote squads."),
-    ("m20","Express AI Consultation","Direct & Premium","On-demand AI expertise."),
-    ("m21","AI Startup Builder On-Demand","Direct & Premium","Turnkey AI startup launch."),
-    ("m22","Web3 & Spatial Computing","Direct & Premium","Metaverse and Web3 integration."),
-    ("m23","Direct Escrow & Mass Payouts","Direct & Premium","Bulk global payments."),
+    ("m9","Embedded & Edge AI Hardware","Talent Sourcing","On-device inference."),
+    ("m10","Quantum Computing & Security","Talent Sourcing","Post-quantum crypto."),
+    ("m11","RLHF & Model Evaluation","Data & Training","Output grading."),
+    ("m12","Code Data Annotation","Data & Training","Annotated datasets."),
+    ("m13","Multimodal Data Sourcing","Data & Training","Vision-language-text."),
+    ("m14","Red Teaming & AI Safety","Data & Training","Adversarial testing."),
+    ("m15","AI Voice/Video Interview Bot","Hiring Tools","Automated interviews."),
+    ("m16","Code Assessment Engine","Hiring Tools","Real-time evaluation."),
+    ("m17","Background & Trust Score","Hiring Tools","Identity verification."),
+    ("m18","AI Skill Graph Analyzer","Hiring Tools","Skill gap analysis."),
+    ("m19","Dedicated Remote Teams","Direct & Premium","Managed squads."),
+    ("m20","Express AI Consultation","Direct & Premium","On-demand expertise."),
+    ("m21","AI Startup Builder On-Demand","Direct & Premium","Turnkey launch."),
+    ("m22","Web3 & Spatial Computing","Direct & Premium","Metaverse integration."),
+    ("m23","Direct Escrow & Mass Payouts","Direct & Premium","Bulk payments."),
     ("m24","Enterprise SLA & Managed PM","Direct & Premium","Enterprise SLAs."),
-    ("m25","Instant Talent API Access","Direct & Premium","REST API to talent pool."),
-    ("m26","Cloud GPU & TPU Server Access","Infrastructure","On-demand GPU/TPU compute."),
-    ("m27","Quantum QPU Remote Access","Infrastructure","Quantum processing units."),
-    ("m28","AI Sandbox & Code Execution","Infrastructure","Isolated code environments."),
-    ("m29","Serverless AI Endpoint Hosting","Infrastructure","Deploy models serverlessly."),
-    ("m30","Autonomous Software Engineer Swarm","Infrastructure","AI agents that code."),
-    ("m31","AI Data Scraping & Web Extraction","Infrastructure","AI web data extraction."),
-    ("m32","Autonomous SMM & Marketing","Infrastructure","AI social-media bots."),
-    ("m33","AI Customer Support & Voice Bot","Infrastructure","24/7 AI support."),
-    ("m34","Zero-Knowledge Proofs Sandbox","Infrastructure","zk-SNARK/STARK playground."),
-    ("m35","Automated NDA & Smart Contracts","Infrastructure","Auto-generated contracts."),
-    ("m36","Deepfake & Synthetic Media Audit","Infrastructure","Detect AI-generated media."),
-    ("m37","WebXR & Spatial VR Showroom","Infrastructure","WebXR 3D experiences."),
-    ("m38","3D Generative Asset Factory","Infrastructure","AI-generated 3D models."),
-    ("m39","Digital Twin Factory Simulation","Infrastructure","Digital twin engines."),
-    ("m40","Custom GLSL Shader & Physics","Infrastructure","Custom WebGL shaders."),
-    ("m41","HFT Micro-Equity Exchange","Infrastructure","HFT matching engine."),
+    ("m25","Instant Talent API Access","Direct & Premium","Talent REST API."),
+    ("m26","Cloud GPU & TPU Server Access","Infrastructure","GPU/TPU on-demand."),
+    ("m27","Quantum QPU Remote Access","Infrastructure","QPU access."),
+    ("m28","AI Sandbox & Code Execution","Infrastructure","Isolated environments."),
+    ("m29","Serverless AI Endpoint Hosting","Infrastructure","Serverless AI."),
+    ("m30","Autonomous Software Engineer Swarm","Infrastructure","AI that codes."),
+    ("m31","AI Data Scraping & Web Extraction","Infrastructure","AI web extraction."),
+    ("m32","Autonomous SMM & Marketing","Infrastructure","AI SMM bots."),
+    ("m33","AI Customer Support & Voice Bot","Infrastructure","24/7 support."),
+    ("m34","Zero-Knowledge Proofs Sandbox","Infrastructure","zk-SNARK/STARK."),
+    ("m35","Automated NDA & Smart Contracts","Infrastructure","Auto contracts."),
+    ("m36","Deepfake & Synthetic Media Audit","Infrastructure","AI media detection."),
+    ("m37","WebXR & Spatial VR Showroom","Infrastructure","WebXR 3D."),
+    ("m38","3D Generative Asset Factory","Infrastructure","AI 3D models."),
+    ("m39","Digital Twin Factory Simulation","Infrastructure","Digital twins."),
+    ("m40","Custom GLSL Shader & Physics","Infrastructure","WebGL shaders."),
+    ("m41","HFT Micro-Equity Exchange","Infrastructure","HFT engine."),
     ("m42","Global Crypto Escrow","Infrastructure","Multi-currency escrow."),
-    ("m43","Micro-Equity Flash Loans","Infrastructure","DeFi flash-loan infra."),
-    ("m44","AI Startup Crowdfunding","Infrastructure","AI-vetted crowdfunding."),
+    ("m43","Micro-Equity Flash Loans","Infrastructure","DeFi flash-loans."),
+    ("m44","AI Startup Crowdfunding","Infrastructure","AI crowdfunding."),
     ("m45","AI-Powered Code Review","Developer Tools","Automated PR review."),
-    ("m46","Automated Testing Suite","Developer Tools","AI test generation."),
-    ("m47","CI/CD Pipeline Integration","Developer Tools","CI/CD with AI."),
+    ("m46","Automated Testing Suite","Developer Tools","AI tests."),
+    ("m47","CI/CD Pipeline Integration","Developer Tools","AI CI/CD."),
     ("m48","Docker & Kubernetes Orchestration","Developer Tools","Container orchestration."),
-    ("m49","AI-Driven Documentation","Developer Tools","Auto-generated docs."),
-    ("m50","Code Quality Dashboard","Developer Tools","Real-time quality metrics."),
+    ("m49","AI-Driven Documentation","Developer Tools","Auto docs."),
+    ("m50","Code Quality Dashboard","Developer Tools","Quality metrics."),
     ("m51","Real-Time Error Tracking","Developer Tools","Error aggregation."),
-    ("m52","Performance Monitoring","Developer Tools","APM for AI workloads."),
-    ("m53","Security Vulnerability Scanner","Developer Tools","SAST/DAST scanner."),
-    ("m54","API Gateway & Management","Developer Tools","Gateway with auth."),
+    ("m52","Performance Monitoring","Developer Tools","APM for AI."),
+    ("m53","Security Vulnerability Scanner","Developer Tools","SAST/DAST."),
+    ("m54","API Gateway & Management","Developer Tools","Gateway."),
     ("m55","GraphQL Federation","Developer Tools","Federated GraphQL."),
-    ("m56","Event-Driven Architecture","Developer Tools","Kafka-style event bus."),
-    ("m57","Data Lake & Analytics","Developer Tools","Data lake with analytics."),
+    ("m56","Event-Driven Architecture","Developer Tools","Event bus."),
+    ("m57","Data Lake & Analytics","Developer Tools","Data lake."),
     ("m58","MLOps Pipeline","Developer Tools","End-to-end MLOps."),
-    ("m59","Model Monitoring & Drift","Developer Tools","Detect model drift."),
-    ("m60","Feature Store","Developer Tools","Feature store for ML."),
-    ("m61","Explainable AI (XAI)","Developer Tools","Model explainability."),
-    ("m62","Federated Learning","Developer Tools","Privacy-preserving training."),
+    ("m59","Model Monitoring & Drift","Developer Tools","Drift detection."),
+    ("m60","Feature Store","Developer Tools","Feature store."),
+    ("m61","Explainable AI (XAI)","Developer Tools","XAI toolkit."),
+    ("m62","Federated Learning","Developer Tools","Privacy-preserving."),
     ("m63","Synthetic Data Generation","Developer Tools","Synthetic datasets."),
-    ("m64","AI Governance & Compliance","Developer Tools","AI compliance toolkit."),
+    ("m64","AI Governance & Compliance","Developer Tools","AI compliance."),
 ]
 
-MODULES: List[Dict[str, Any]] = [
+MODULES = [
     {"id": mid, "name": name, "category": cat, "description": desc, "active": True}
-    for mid, name, cat, desc in _MODULE_DEFS
+    for mid, name, cat, desc in _MODULES_RAW
 ]
 
 
@@ -302,8 +289,10 @@ def make_token(user_id: int) -> str:
     expires = (datetime.utcnow() + timedelta(hours=TOKEN_EXPIRY_HOURS)).isoformat()
     conn = db()
     try:
-        conn.execute("INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?,?)",
-                     (token, user_id, expires))
+        conn.execute(
+            "INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?,?)",
+            (token, user_id, expires),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -316,8 +305,7 @@ def user_from_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
     conn = db()
     try:
         row = conn.execute(
-            """SELECT u.* FROM users u
-               JOIN sessions s ON s.user_id = u.id
+            """SELECT u.* FROM users u JOIN sessions s ON s.user_id = u.id
                WHERE s.token = ? AND s.expires_at > datetime('now')""",
             (token,),
         ).fetchone()
@@ -354,47 +342,49 @@ def make_ref_code(name: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# AI ENGINE (rule-based, no external API)
+# AI ENGINE (rule-based, zero external API)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class AI:
-    KNOWLEDGE = {
+class AIEngine:
+    KB = {
         "trust": "Trust Score = skills (30%) + projects (25%) + reviews (20%) + code quality (15%) + interview (10%). Range: 0-100.",
-        "modules": "ERCORS has 84 modules: Core (5), Talent Sourcing (5), Data & Training (4), Hiring Tools (4), Direct & Premium (7), Infrastructure (19), Developer Tools (20).",
+        "modules": "ERCORS has 84 modules: Core (5), Talent (5), Data (4), Hiring (4), Premium (7), Infra (19), DevTools (20).",
         "earn": "Earn via: bounty board ($1.5k-$12k), referrals ($50/signup), job matching ($100k-$500k), contests, hackathons.",
-        "hire": "Companies hire via AI Matching (1-sec), Video Interview Bot, Code Assessment, and Skill Graph. Avg time: 48 hours.",
-        "escrow": "Escrow locks funds until milestone completion. Supports USD/BTC/ETH/USDC with 0.5% fee.",
-        "price": "ERCORS is FREE forever. Premium: $19/mo. Enterprise: custom.",
-        "job": "Top hiring: Google (47), OpenAI (23), Meta (31), Microsoft (38), Anthropic (18), Nvidia (29). Avg salary: $185k.",
-        "learn": "Free courses: Python for AI, Deep Learning, LLM Engineering. Blockchain-verified certificates.",
-        "security": "SOC2-compliant, E2E encryption, zero-trust, PBKDF2 password hashing (100k iterations).",
+        "hire": "Companies hire via AI Matching (1-sec), Video Bot, Code Assessment, Skill Graph. Avg: 48 hours.",
+        "escrow": "Escrow locks funds until milestone. USD/BTC/ETH/USDC. 0.5% fee.",
+        "price": "ERCORS FREE forever. Premium: $19/mo. Enterprise: custom.",
+        "job": "Top hiring: Google (47), OpenAI (23), Meta (31), Microsoft (38), Anthropic (18), Nvidia (29). Avg $185k.",
+        "learn": "Free courses: Python for AI, Deep Learning, LLM Engineering. Blockchain certificates.",
+        "security": "SOC2, E2E encryption, zero-trust, PBKDF2 100k iterations.",
     }
 
     @classmethod
-    def chat(cls, msg: str, context: Optional[List] = None) -> str:
+    def chat(cls, msg: str) -> str:
         m = msg.lower().strip()
-        if len(m) < 5 and any(g in m for g in ["hi", "hey", "hello", "salom"]):
+        if len(m) < 6 and any(g in m for g in ["hi", "hey", "hello", "salom"]):
             return "Hey! 👋 I'm the ERCORS AI. Ask about trust scores, jobs, modules, or earning."
-        for key, ans in cls.KNOWLEDGE.items():
+        for key, ans in cls.KB.items():
             if key in m:
                 return ans
         if any(w in m for w in ["job", "hire", "salary", "work", "career"]):
-            return cls.KNOWLEDGE["job"]
+            return cls.KB["job"]
         if any(w in m for w in ["money", "earn", "referral", "bounty", "income"]):
-            return cls.KNOWLEDGE["earn"]
-        if any(w in m for w in ["learn", "course", "certification", "skill"]):
-            return cls.KNOWLEDGE["learn"]
+            return cls.KB["earn"]
+        if any(w in m for w in ["learn", "course", "cert", "skill"]):
+            return cls.KB["learn"]
         if any(w in m for w in ["security", "audit", "safe", "password"]):
-            return cls.KNOWLEDGE["security"]
-        if any(w in m for w in ["price", "cost", "fee", "payment"]):
-            return cls.KNOWLEDGE["price"]
-        return (f"Interesting! Tell me more about '{msg[:50]}'. "
-                "I can help with hiring, learning, earning, or building AI products.")
+            return cls.KB["security"]
+        if any(w in m for w in ["price", "cost", "fee"]):
+            return cls.KB["price"]
+        return (
+            f"Interesting! Tell me more about '{msg[:50]}'. "
+            "I can help with hiring, learning, earning, or building AI."
+        )
 
     @classmethod
     def analyze_cv(cls, text: str) -> Dict[str, Any]:
         tl = text.lower()
-        skills_db = [
+        skills = [
             "python","javascript","typescript","react","vue","angular","node.js","node",
             "pytorch","tensorflow","keras","scikit-learn","pandas","numpy",
             "fastapi","flask","django","express","graphql","rest","docker","kubernetes",
@@ -403,7 +393,7 @@ class AI:
             "rag","langchain","huggingface","sql","git","ci/cd","machine learning",
             "deep learning","nlp","computer vision","data science","analytics",
         ]
-        found = sorted({s for s in skills_db if s in tl})
+        found = sorted({s for s in skills if s in tl})
 
         exp = 0
         for m in re.finditer(r"(\d+)\s*(?:\+)?\s*(?:years?|yrs?)", tl):
@@ -422,25 +412,23 @@ class AI:
             "experience_years": exp,
             "current_position": role,
             "trust_score": score,
-            "summary": f"{role} with {exp}y experience, {len(found)} skills."
+            "summary": f"{role} with {exp}y exp, {len(found)} skills.",
         }
 
     @classmethod
     def analyze_interview(cls, transcript: str, position: str = "AI Engineer") -> Dict[str, Any]:
         wc = len(transcript.split())
-        strengths = ["Strong technical background", "Clear communication", "Problem-solving mindset"]
-        weaknesses = ["Could elaborate on system design", "Add metrics to achievements"]
         score = min(98, max(45, 60 + wc // 20 + secrets.randbelow(15)))
         return {
             "summary": f"{wc}-word response analyzed for {position}.",
-            "strengths": strengths,
-            "weaknesses": weaknesses,
+            "strengths": ["Strong technical background", "Clear communication", "Problem-solving"],
+            "weaknesses": ["Could elaborate on system design", "Add metrics to achievements"],
             "match_score": score,
             "recommendation": "STRONG HIRE" if score >= 85 else "HIRE" if score >= 70 else "MAYBE",
         }
 
 
-ai = AI()
+ai = AIEngine()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -479,24 +467,31 @@ ws_mgr = WSManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log.info("🚀 ERCORS v13 starting on %s:%d", HOST, PORT)
     init_db()
-    log.info("🚀 ERCORS v13 starting")
     yield
-    log.info("👋 Shutdown")
+    log.info("👋 ERCORS shutting down")
 
 
-app = FastAPI(title="ERCORS API", version="13.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="ERCORS API",
+    version="13.0.0",
+    description="AI Meta-Platform for AGI & Autonomous Economy",
+    lifespan=lifespan,
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HEALTH & STATS
+# HEALTH & ROOT
 # ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/health")
@@ -506,6 +501,8 @@ def health():
         "version": "13.0.0",
         "modules": len(MODULES),
         "time": datetime.utcnow().isoformat(),
+        "db": str(DB_PATH),
+        "env": "render" if os.getenv("RENDER") else "local",
     }
 
 
@@ -548,13 +545,12 @@ def register(
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return JSONResponse({"status": "error", "message": "Invalid email"}, status_code=400)
     if len(password) < 6:
-        return JSONResponse({"status": "error", "message": "Password must be 6+ characters"}, status_code=400)
+        return JSONResponse({"status": "error", "message": "Password too short"}, status_code=400)
 
     conn = db()
     try:
         if conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone():
-            return JSONResponse({"status": "error", "message": "Email already registered"}, status_code=409)
-
+            return JSONResponse({"status": "error", "message": "Email exists"}, status_code=409)
         ref = make_ref_code(full_name)
         cur = conn.execute(
             """INSERT INTO users
@@ -566,10 +562,10 @@ def register(
         )
         uid = cur.lastrowid
         conn.commit()
-
         token = make_token(uid)
         user = dict(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
         user.pop("password_hash", None)
+        log.info("New user registered: %s", email)
         return {"status": "success", "session": token, "user": user}
     finally:
         conn.close()
@@ -582,10 +578,8 @@ def login(email: str = Form(...), password: str = Form(...)):
         row = conn.execute("SELECT * FROM users WHERE email=?", (email.lower().strip(),)).fetchone()
         if not row or not verify_pw(password, row["password_hash"]):
             return JSONResponse({"status": "error", "message": "Invalid credentials"}, status_code=401)
-
         conn.execute("UPDATE users SET last_login=datetime('now') WHERE id=?", (row["id"],))
         conn.commit()
-
         token = make_token(row["id"])
         user = dict(row)
         user.pop("password_hash", None)
@@ -632,22 +626,21 @@ def get_module(mid: str):
     for m in MODULES:
         if m["id"] == mid:
             return m
-    raise HTTPException(status_code=404, detail="Module not found")
+    raise HTTPException(404, "Module not found")
 
 
 @app.post("/api/modules/{mid}/action")
 async def module_action(mid: str, request: Request):
     m = next((x for x in MODULES if x["id"] == mid), None)
     if not m:
-        raise HTTPException(status_code=404, detail="Module not found")
-
+        raise HTTPException(404, "Module not found")
     user = await current_user(request)
     result = {
         "module": m["name"],
         "executed_at": datetime.utcnow().isoformat(),
         "duration_ms": secrets.randbelow(500) + 50,
         "status": "success",
-        "output": f"Module '{m['name']}' executed successfully.",
+        "output": f"Module '{m['name']}' executed.",
     }
     if user:
         conn = db()
@@ -660,7 +653,7 @@ async def module_action(mid: str, request: Request):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TALENTS
+# TALENTS / CAMPAIGNS / POSTS / ESCROW
 # ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/talents")
@@ -678,18 +671,14 @@ def talents(limit: int = 20):
             results = [
                 {"id": -1, "name": "Alice Johnson", "skills": "Python, PyTorch, LLM", "title": "Senior AI Engineer", "trust_score": 99.2},
                 {"id": -2, "name": "Bob Smith", "skills": "Rust, C++, Quantum", "title": "Systems Architect", "trust_score": 98.7},
-                {"id": -3, "name": "Carol White", "skills": "React, Node, TypeScript", "title": "Full-Stack Lead", "trust_score": 97.9},
-                {"id": -4, "name": "David Chen", "skills": "Go, Kubernetes, AWS", "title": "DevOps Architect", "trust_score": 98.1},
-                {"id": -5, "name": "Elena Rodriguez", "skills": "Data Science, R, SQL", "title": "Data Science Lead", "trust_score": 97.5},
+                {"id": -3, "name": "Carol White", "skills": "React, Node, TS", "title": "Full-Stack Lead", "trust_score": 97.9},
+                {"id": -4, "name": "David Chen", "skills": "Go, K8s, AWS", "title": "DevOps Architect", "trust_score": 98.1},
+                {"id": -5, "name": "Elena Rodriguez", "skills": "DS, R, SQL", "title": "DS Lead", "trust_score": 97.5},
             ]
         return results
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CAMPAIGNS
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/campaigns")
 def list_campaigns():
@@ -714,7 +703,6 @@ async def create_campaign(
     user = await current_user(request)
     if not user:
         return JSONResponse({"status": "error", "message": "Login required"}, status_code=401)
-
     conn = db()
     try:
         cur = conn.execute(
@@ -729,18 +717,11 @@ async def create_campaign(
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# POSTS
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/api/posts")
 def list_posts(limit: int = 50):
     conn = db()
     try:
-        rows = conn.execute(
-            "SELECT * FROM posts ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM posts ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -752,8 +733,7 @@ async def create_post(request: Request, content: str = Form(...)):
     if not user:
         return JSONResponse({"status": "error", "message": "Login required"}, status_code=401)
     if len(content) > 2000:
-        return JSONResponse({"status": "error", "message": "Content too long"}, status_code=400)
-
+        return JSONResponse({"status": "error", "message": "Too long"}, status_code=400)
     conn = db()
     try:
         cur = conn.execute(
@@ -763,10 +743,7 @@ async def create_post(request: Request, content: str = Form(...)):
         conn.execute("UPDATE users SET xp = xp + 10 WHERE id=?", (user["id"],))
         conn.commit()
         pid = cur.lastrowid
-        await ws_mgr.broadcast({
-            "type": "new_post",
-            "post": {"id": pid, "user_name": user["full_name"], "content": content},
-        })
+        await ws_mgr.broadcast({"type": "new_post", "post": {"id": pid, "user_name": user["full_name"], "content": content}})
         return {"status": "success", "id": pid}
     finally:
         conn.close()
@@ -783,10 +760,6 @@ def like_post(pid: int):
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# ESCROW
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/escrow")
 async def list_escrow(request: Request):
@@ -828,7 +801,8 @@ def leaderboard():
     conn = db()
     try:
         rows = conn.execute(
-            """SELECT full_name AS name, referred_count AS referrals, referral_earnings AS reward_num
+            """SELECT full_name AS name, referred_count AS referrals,
+                      referral_earnings AS reward_num
                FROM users WHERE referred_count > 0
                ORDER BY referred_count DESC LIMIT 10"""
         ).fetchall()
@@ -850,7 +824,7 @@ def leaderboard():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# BADGES & STREAK
+# BADGES / STREAK
 # ═══════════════════════════════════════════════════════════════════════════
 
 BADGE_XP = {"first": 50, "sharer": 100, "inviter": 200, "ai": 500, "vip": 1000, "founder": 5000}
@@ -863,14 +837,12 @@ async def claim_badge(request: Request, badge_key: str = Form(...)):
         return JSONResponse({"status": "error", "message": "Login required"}, status_code=401)
     if badge_key not in BADGE_XP:
         return JSONResponse({"status": "error", "message": "Unknown badge"}, status_code=400)
-
     conn = db()
     try:
         try:
             conn.execute("INSERT INTO badges (user_id, badge_key) VALUES (?,?)", (user["id"], badge_key))
         except sqlite3.IntegrityError:
-            return {"status": "error", "message": "Badge already claimed"}
-
+            return {"status": "error", "message": "Already claimed"}
         xp_add = BADGE_XP[badge_key]
         conn.execute("UPDATE users SET xp = xp + ? WHERE id=?", (xp_add, user["id"]))
         row = conn.execute("SELECT xp FROM users WHERE id=?", (user["id"],)).fetchone()
@@ -906,21 +878,17 @@ async def claim_streak(request: Request):
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# SHARE EVENT
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.post("/api/share/event")
 async def share_event(request: Request, platform: str = Form(...)):
     user = await current_user(request)
-    conn = db()
-    try:
-        if user:
+    if user:
+        conn = db()
+        try:
             conn.execute("UPDATE users SET xp = xp + 5 WHERE id=?", (user["id"],))
             conn.commit()
-        return {"status": "success"}
-    finally:
-        conn.close()
+        finally:
+            conn.close()
+    return {"status": "success"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -967,7 +935,6 @@ def badge_svg(user_id: str):
             conn.close()
         except Exception:
             pass
-
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120">
   <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
     <stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#7000ff"/>
@@ -984,7 +951,7 @@ def badge_svg(user_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HR: CV UPLOAD
+# HR: CV + AUDIO
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _extract_text(filename: str, data: bytes) -> str:
@@ -992,7 +959,6 @@ def _extract_text(filename: str, data: bytes) -> str:
     if name.endswith(".txt"):
         return data.decode("utf-8", errors="ignore")
     if name.endswith(".pdf"):
-        # Best-effort PDF text extraction
         parts = []
         for m in re.finditer(rb"\(([^)]{2,})\)", data):
             try:
@@ -1008,7 +974,6 @@ async def upload_cv(request: Request, file: UploadFile = File(...)):
     user = await current_user(request)
     if not user:
         return JSONResponse({"status": "error", "message": "Login required"}, status_code=401)
-
     data = await file.read()
     if len(data) > MAX_UPLOAD_SIZE:
         return JSONResponse({"status": "error", "message": "File too large"}, status_code=413)
@@ -1041,10 +1006,6 @@ async def upload_cv(request: Request, file: UploadFile = File(...)):
     }
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# HR: AUDIO INTERVIEW
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.post("/api/v1/hr/audio/analyze-interview")
 async def analyze_interview(
     request: Request,
@@ -1055,14 +1016,11 @@ async def analyze_interview(
     data = await file.read()
     if len(data) > MAX_UPLOAD_SIZE:
         return JSONResponse({"status": "error", "message": "File too large"}, status_code=413)
-
     transcript = (
-        f"This is a simulated {language} interview transcript. "
-        "The candidate demonstrates strong technical expertise, clear communication skills, "
-        "and problem-solving abilities. Experience includes 5+ years in AI/ML, "
-        "building production systems at scale with Python, PyTorch, and Kubernetes."
+        f"Simulated {language} interview transcript. "
+        "Candidate demonstrates strong technical expertise, clear communication, "
+        "and problem-solving. 5+ years in AI/ML with Python, PyTorch, Kubernetes."
     )
-
     analysis = ai.analyze_interview(transcript, position or "AI Engineer")
     return {
         "status": "success",
@@ -1074,7 +1032,7 @@ async def analyze_interview(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HARVESTER & NEGOTIATOR
+# HARVESTER / NEGOTIATOR / BOUNTIES
 # ═══════════════════════════════════════════════════════════════════════════
 
 @app.post("/api/v1/harvester/start")
@@ -1084,11 +1042,10 @@ async def start_harvester(
     min_followers: int = Form(20),
     limit: int = Form(10),
 ):
-    job_id = f"hb_{secrets.token_hex(6)}"
     return {
         "status": "RUNNING",
-        "job_id": job_id,
-        "message": f"Harvesting {limit} {language} devs with {min_stars}+ stars...",
+        "job_id": f"hb_{secrets.token_hex(6)}",
+        "message": f"Harvesting {limit} {language} devs...",
     }
 
 
@@ -1109,15 +1066,11 @@ async def negotiate(
             "developer": developer_name,
             "budget": final,
             "deadline": f"{secrets.choice([14, 21, 30, 45])} days",
-            "terms": "Milestone-based escrow, NDA signed, 10% upfront, 90% on delivery",
+            "terms": "Milestone escrow, NDA, 10% upfront, 90% on delivery",
             "accepted": True,
         },
     }
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# BOUNTIES
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/v1/bounties")
 def list_bounties():
@@ -1138,7 +1091,7 @@ async def claim_bounty(bid: str, request: Request):
     try:
         row = conn.execute("SELECT * FROM bounties WHERE id=?", (bid,)).fetchone()
         if not row:
-            return JSONResponse({"status": "error", "message": "Bounty not found"}, status_code=404)
+            return JSONResponse({"status": "error", "message": "Not found"}, status_code=404)
         if row["claimed_by"]:
             return JSONResponse({"status": "error", "message": "Already claimed"}, status_code=409)
         conn.execute("UPDATE bounties SET claimed_by=?, claimed_at=datetime('now') WHERE id=?",
@@ -1193,10 +1146,6 @@ def skill_gap(skills: str = Form(...), role: str = Form("ai")):
     return {"status": "success", "match_percentage": pct, "have": have, "missing": missing}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# LIVE STATS
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/api/v1/live/stats")
 def live_stats():
     return {
@@ -1235,34 +1184,43 @@ async def ws_endpoint(ws: WebSocket):
 def root():
     if INDEX_HTML.exists():
         return FileResponse(INDEX_HTML)
-    return HTMLResponse("<h1>ERCORS Backend is running 🚀</h1><p>Place index.html next to main.py</p>")
+    return HTMLResponse(
+        "<h1>🚀 ERCORS Backend is running</h1>"
+        "<p>Place <code>index.html</code> in the same directory to serve the frontend.</p>"
+        "<p><a href='/docs'>API Docs</a> · <a href='/health'>Health</a></p>"
+    )
 
 
 @app.get("/{full_path:path}")
 def spa_fallback(full_path: str):
     if full_path.startswith("api/") or full_path.startswith("ws"):
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(404, "Not found")
     if INDEX_HTML.exists():
         return FileResponse(INDEX_HTML)
-    raise HTTPException(status_code=404, detail="Not found")
+    raise HTTPException(404, "Not found")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ENTRY POINT
+# ENTRY POINT (Render uses PORT env var)
 # ═══════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("PORT", "8000"))
-    host = os.getenv("HOST", "0.0.0.0")
-
     log.info("=" * 70)
     log.info("  ERCORS v13 — Backend")
-    log.info("  URL:    http://localhost:%d", port)
-    log.info("  Docs:   http://localhost:%d/docs", port)
-    log.info("  Health: http://localhost:%d/health", port)
+    log.info("  Listening on %s:%d", HOST, PORT)
+    log.info("  DB path: %s", DB_PATH)
     log.info("  Modules: %d", len(MODULES))
+    log.info("  Env: %s", "RENDER" if os.getenv("RENDER") else "LOCAL")
     log.info("=" * 70)
 
-    uvicorn.run("main:app", host=host, port=port, reload=False, log_level="info")
+    uvicorn.run(
+        "main:app",
+        host=HOST,
+        port=PORT,
+        reload=False,
+        log_level="info",
+        access_log=True,
+        timeout_keep_alive=65,
+    )
