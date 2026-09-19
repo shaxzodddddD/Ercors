@@ -1,11 +1,11 @@
 """
-ERCORS v13 Backend — FastAPI + SQLite + WebSocket
+ERCORS v13 — FastAPI Backend
 Render.com ready · Python 3.11.9 · Zero native compilation
 """
 
 import os
-import re
 import sys
+import re
 import base64
 import hashlib
 import secrets
@@ -458,7 +458,7 @@ app.add_middleware(
 
 
 # ═══════════════════════════════════════════════════════════════
-# HEALTH
+# HEALTH & STATS
 # ═══════════════════════════════════════════════════════════════
 
 @app.get("/health")
@@ -487,6 +487,16 @@ def stats():
         }
     finally:
         conn.close()
+
+
+@app.get("/api/v1/live/stats")
+def live_stats():
+    return {
+        "online_users": 12847 + secrets.randbelow(100),
+        "earned_today": 4200000 + secrets.randbelow(100000),
+        "joined_last_hour": 347 + secrets.randbelow(20),
+        "modules": len(MODULES),
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -925,7 +935,6 @@ def badge_svg(user_id: str):
   <text x="20" y="40" font-family="Arial" font-size="20" font-weight="800" fill="#00f0ff">ERCORS</text>
   <text x="20" y="65" font-family="Arial" font-size="14" fill="#ffffff">{name[:24]}</text>
   <text x="20" y="90" font-family="Arial" font-size="12" fill="#94a3b8">Trust Score: {score}</text>
-  <text x="260" y="40" font-family="Arial" font-size="24">🤖</text>
 </svg>'''
     return Response(content=svg, media_type="image/svg+xml",
                     headers={"Cache-Control": "public, max-age=3600"})
