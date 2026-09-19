@@ -44,3 +44,6 @@ urllib3==2.2.1
 msgpack==1.0.7
 toml==0.10.2
 EOF
+fastapi
+uvicorn[standard]
+python-multipart
