@@ -1,11 +1,6 @@
 """
-═══════════════════════════════════════════════════════════════════════════════
-ERCORS v12 — Backend API
-FastAPI + SQLite · Render.com Ready · Python 3.11.9
-Fully compatible with ERCORS v12 index.html
-═══════════════════════════════════════════════════════════════════════════════
+ERCORS v13 Backend — Compatible with Python 3.14 + FastAPI 0.141
 """
-
 import os
 import re
 import sys
@@ -24,26 +19,20 @@ from fastapi import (
     FastAPI, Request, HTTPException, Depends, Form,
     UploadFile, File, WebSocket, WebSocketDisconnect
 )
-from fastapi.responses import (
-    HTMLResponse, JSONResponse, Response, FileResponse
-)
+from fastapi.responses import HTMLResponse, JSONResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+# CONFIG
+# ═══════════════════════════════════════════════════════════════
 
 BASE_DIR = Path(__file__).resolve().parent
-
-# On Render, /tmp is writable. Locally, use project dir.
 _default_data = "/tmp" if os.getenv("RENDER") else str(BASE_DIR)
 DATA_DIR = Path(os.getenv("DATA_DIR", _default_data))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = DATA_DIR / "ercors.db"
 INDEX_HTML = BASE_DIR / "index.html"
-
 TOKEN_EXPIRY_HOURS = 168
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 PORT = int(os.getenv("PORT", "8000"))
@@ -56,12 +45,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("ercors")
 
-
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # DATABASE
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
-def db() -> sqlite3.Connection:
+def db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -76,105 +64,61 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     user_type TEXT DEFAULT 'expert',
-    company_name TEXT,
-    industry TEXT,
-    skills TEXT,
-    hourly_rate TEXT,
-    github TEXT,
+    company_name TEXT, industry TEXT, skills TEXT,
+    hourly_rate TEXT, github TEXT,
     trust_score REAL DEFAULT 75.0,
-    xp INTEGER DEFAULT 50,
-    level INTEGER DEFAULT 1,
-    projects INTEGER DEFAULT 0,
-    earnings REAL DEFAULT 0,
-    referral_code TEXT UNIQUE,
-    referred_by TEXT,
+    xp INTEGER DEFAULT 50, level INTEGER DEFAULT 1,
+    projects INTEGER DEFAULT 0, earnings REAL DEFAULT 0,
+    referral_code TEXT UNIQUE, referred_by TEXT,
     referred_count INTEGER DEFAULT 0,
     referral_earnings REAL DEFAULT 0,
-    streak_days INTEGER DEFAULT 1,
-    last_streak TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    last_login TEXT
+    streak_days INTEGER DEFAULT 1, last_streak TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP, last_login TEXT
 );
-
 CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    expires_at TEXT NOT NULL
+    token TEXT PRIMARY KEY, user_id INTEGER NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP, expires_at TEXT NOT NULL
 );
-
 CREATE TABLE IF NOT EXISTS campaigns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id INTEGER,
-    title TEXT NOT NULL,
-    description TEXT,
-    required_skills TEXT,
-    min_experience REAL,
-    budget TEXT,
-    deadline TEXT,
-    status TEXT DEFAULT 'Open',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    id INTEGER PRIMARY KEY AUTOINCREMENT, company_id INTEGER,
+    title TEXT NOT NULL, description TEXT, required_skills TEXT,
+    min_experience REAL, budget TEXT, deadline TEXT,
+    status TEXT DEFAULT 'Open', created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    user_name TEXT,
-    content TEXT NOT NULL,
-    likes INTEGER DEFAULT 0,
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, user_name TEXT,
+    content TEXT NOT NULL, likes INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS escrows (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    title TEXT NOT NULL,
-    amount REAL NOT NULL,
-    status TEXT DEFAULT 'active',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
+    title TEXT NOT NULL, amount REAL NOT NULL,
+    status TEXT DEFAULT 'active', created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS badges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    badge_key TEXT NOT NULL,
-    claimed_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
+    badge_key TEXT NOT NULL, claimed_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, badge_key)
 );
-
 CREATE TABLE IF NOT EXISTS bounties (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    company TEXT,
-    prize INTEGER,
-    severity TEXT,
-    deadline TEXT,
-    claimed_by INTEGER,
-    claimed_at TEXT
+    id TEXT PRIMARY KEY, title TEXT NOT NULL, company TEXT,
+    prize INTEGER, severity TEXT, deadline TEXT,
+    claimed_by INTEGER, claimed_at TEXT
 );
-
 CREATE TABLE IF NOT EXISTS chat_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    role TEXT,
-    message TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
+    role TEXT, message TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
-CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 """
 
 
-def init_db() -> None:
-    """Initialize database schema and seed data."""
+def init_db():
     conn = db()
     try:
         conn.executescript(SCHEMA)
         conn.commit()
-
-        # Seed bounties
         if conn.execute("SELECT COUNT(*) c FROM bounties").fetchone()["c"] == 0:
             conn.executemany(
                 "INSERT INTO bounties (id,title,company,prize,severity,deadline) VALUES (?,?,?,?,?,?)",
@@ -187,8 +131,6 @@ def init_db() -> None:
                     ("b6", "Create LLM eval dataset", "Hugging Face", 2000, "high", "1d"),
                 ]
             )
-
-        # Seed posts
         if conn.execute("SELECT COUNT(*) c FROM posts").fetchone()["c"] == 0:
             conn.executemany(
                 "INSERT INTO posts (user_name, content, likes) VALUES (?,?,?)",
@@ -198,27 +140,23 @@ def init_db() -> None:
                     ("ERCORS Admin", "64 modul LIVE ✅", 89),
                 ]
             )
-
-        # Seed campaigns
         if conn.execute("SELECT COUNT(*) c FROM campaigns").fetchone()["c"] == 0:
             conn.executemany(
-                """INSERT INTO campaigns (title,description,budget,deadline,company_name,required_skills)
-                   VALUES (?,?,?,?,?,?)""",
+                "INSERT INTO campaigns (title,description,budget,deadline,required_skills) VALUES (?,?,?,?,?)",
                 [
-                    ("AI Chatbot Development", "Autonomous AI chatbot", "$15,000", "2026-12-01", "TechCorp", "python,llm,fastapi"),
-                    ("Quantum Cryptography", "Post-Quantum security", "$25,000", "2026-11-15", "QuantumSecure", "python,quantum"),
+                    ("AI Chatbot Development", "Autonomous AI chatbot", "$15,000", "2026-12-01", "python,llm,fastapi"),
+                    ("Quantum Cryptography", "Post-Quantum security", "$25,000", "2026-11-15", "python,quantum"),
                 ]
             )
-
         conn.commit()
-        log.info("✅ Database ready at %s", DB_PATH)
+        log.info("Database ready: %s", DB_PATH)
     finally:
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # 64 MODULES
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 _MODULE_DATA = [
     ("m1", "Enterprise AI Talent Matching", "Core"),
@@ -248,11 +186,11 @@ _MODULE_DATA = [
     ("m25", "Instant Talent API Access", "Direct & Premium"),
     ("m26", "Cloud GPU & TPU Server Access", "Infrastructure"),
     ("m27", "Quantum QPU Remote Access", "Infrastructure"),
-    ("m28", "AI Sandbox & Code Execution Nodes", "Infrastructure"),
+    ("m28", "AI Sandbox & Code Execution", "Infrastructure"),
     ("m29", "Serverless AI Endpoint Hosting", "Infrastructure"),
     ("m30", "Autonomous Software Engineer Swarm", "Infrastructure"),
     ("m31", "AI Data Scraping & Web Extraction", "Infrastructure"),
-    ("m32", "Autonomous SMM & Marketing Agents", "Infrastructure"),
+    ("m32", "Autonomous SMM & Marketing", "Infrastructure"),
     ("m33", "AI Customer Support & Voice Bot", "Infrastructure"),
     ("m34", "Zero-Knowledge Proofs Sandbox", "Infrastructure"),
     ("m35", "Automated NDA & Smart Contracts", "Infrastructure"),
@@ -261,10 +199,10 @@ _MODULE_DATA = [
     ("m38", "3D Generative Asset Factory", "Infrastructure"),
     ("m39", "Digital Twin Factory Simulation", "Infrastructure"),
     ("m40", "Custom GLSL Shader & Physics", "Infrastructure"),
-    ("m41", "High-Frequency Micro-Equity Exchange", "Infrastructure"),
-    ("m42", "Global Crypto & Cross-Border Escrow", "Infrastructure"),
-    ("m43", "Micro-Equity Flash Loans & Leverage", "Infrastructure"),
-    ("m44", "AI Startup Crowdfunding Portal", "Infrastructure"),
+    ("m41", "HFT Micro-Equity Exchange", "Infrastructure"),
+    ("m42", "Global Crypto Escrow", "Infrastructure"),
+    ("m43", "Micro-Equity Flash Loans", "Infrastructure"),
+    ("m44", "AI Startup Crowdfunding", "Infrastructure"),
     ("m45", "AI-Powered Code Review", "Developer Tools"),
     ("m46", "Automated Testing Suite", "Developer Tools"),
     ("m47", "CI/CD Pipeline Integration", "Developer Tools"),
@@ -279,7 +217,7 @@ _MODULE_DATA = [
     ("m56", "Event-Driven Architecture", "Developer Tools"),
     ("m57", "Data Lake & Analytics", "Developer Tools"),
     ("m58", "MLOps Pipeline", "Developer Tools"),
-    ("m59", "Model Monitoring & Drift Detection", "Developer Tools"),
+    ("m59", "Model Monitoring & Drift", "Developer Tools"),
     ("m60", "Feature Store", "Developer Tools"),
     ("m61", "Explainable AI (XAI)", "Developer Tools"),
     ("m62", "Federated Learning", "Developer Tools"),
@@ -288,21 +226,16 @@ _MODULE_DATA = [
 ]
 
 MODULES = [
-    {
-        "id": mid,
-        "name": name,
-        "category": cat,
-        "description": f"Advanced AI module for {cat}.",
-        "active": True,
-    }
+    {"id": mid, "name": name, "category": cat,
+     "description": f"Advanced AI module for {cat}.", "active": True}
     for mid, name, cat in _MODULE_DATA
 ]
 MODULE_MAP = {m["id"]: m for m in MODULES}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # AUTH HELPERS
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 def hash_pw(password: str) -> str:
     salt = secrets.token_bytes(16)
@@ -335,7 +268,7 @@ def make_token(user_id: int) -> str:
     return token
 
 
-def user_from_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
+def user_from_token(token):
     if not token:
         return None
     conn = db()
@@ -355,18 +288,18 @@ def user_from_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
         conn.close()
 
 
-def get_token(request: Request) -> Optional[str]:
+def get_token(request: Request):
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
         return auth[7:].strip()
     return request.cookies.get("ercors_token")
 
 
-async def current_user(request: Request) -> Optional[Dict[str, Any]]:
+async def current_user(request: Request):
     return user_from_token(get_token(request))
 
 
-async def require_user(request: Request) -> Dict[str, Any]:
+async def require_user(request: Request):
     u = await current_user(request)
     if not u:
         raise HTTPException(401, "Authentication required")
@@ -378,14 +311,14 @@ def make_ref_code(name: str) -> str:
     return f"{base}{secrets.token_hex(3).upper()}"
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # AI ENGINE
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 class AIEngine:
     KB = {
         "trust": "Trust Score = skills (30%) + projects (25%) + reviews (20%) + code (15%) + interview (10%). Range: 0-100.",
-        "modules": "ERCORS has 64 modules: Core (5), Talent Sourcing (5), Data & Training (4), Hiring Tools (4), Direct & Premium (7), Infrastructure (19), Developer Tools (20).",
+        "modules": "ERCORS has 64 modules across 7 categories: Core, Talent, Data, Hiring, Premium, Infrastructure, DevTools.",
         "earn": "Earn via: bounty board ($1.5k-$12k), referrals ($50/signup), jobs ($100k-$500k), contests.",
         "hire": "Hire via: AI Matching (1-sec), Video Bot, Code Assessment, Skill Graph. Avg: 48 hours.",
         "escrow": "Escrow locks funds until milestone. USD/BTC/ETH/USDC. 0.5% fee.",
@@ -398,14 +331,13 @@ class AIEngine:
 
     SKILLS_DB = [
         "python", "javascript", "typescript", "react", "vue", "angular",
-        "node.js", "node", "pytorch", "tensorflow", "keras", "scikit-learn",
-        "pandas", "numpy", "fastapi", "flask", "django", "express",
-        "graphql", "rest", "docker", "kubernetes", "terraform", "aws",
-        "gcp", "azure", "postgresql", "mysql", "mongodb", "redis",
-        "rust", "go", "golang", "java", "c++", "swift", "kotlin",
-        "llm", "gpt", "transformers", "rag", "langchain", "huggingface",
-        "sql", "git", "machine learning", "deep learning", "nlp",
-        "computer vision", "data science", "analytics", "tableau",
+        "node", "pytorch", "tensorflow", "keras", "pandas", "numpy",
+        "fastapi", "flask", "django", "express", "graphql", "rest",
+        "docker", "kubernetes", "terraform", "aws", "gcp", "azure",
+        "postgresql", "mysql", "mongodb", "redis", "rust", "golang",
+        "java", "llm", "gpt", "transformers", "rag", "langchain",
+        "huggingface", "sql", "git", "machine learning", "deep learning",
+        "nlp", "computer vision", "data science", "analytics", "tableau",
     ]
 
     @classmethod
@@ -435,13 +367,11 @@ class AIEngine:
         exp = 0
         for m in re.finditer(r"(\d+)\s*(?:\+)?\s*(?:years?|yrs?)", tl):
             exp = max(exp, int(m.group(1)))
-
         role = "AI Engineer"
         if "data scientist" in tl: role = "Data Scientist"
         elif "full stack" in tl or "fullstack" in tl: role = "Full-Stack Engineer"
         elif "devops" in tl: role = "DevOps Engineer"
         elif "ml engineer" in tl: role = "ML Engineer"
-
         score = round(min(95.0, 45 + len(found) * 3 + exp * 4), 1)
         return {
             "skills": found[:25],
@@ -456,7 +386,7 @@ class AIEngine:
         wc = len(transcript.split())
         score = min(98, max(45, 60 + wc // 20 + secrets.randbelow(15)))
         return {
-            "summary": f"{wc}-word response analyzed for {position}.",
+            "summary": f"{wc}-word response analyzed.",
             "strengths": ["Strong technical background", "Clear communication", "Problem-solving"],
             "weaknesses": ["Could elaborate on system design", "Add metrics"],
             "match_score": score,
@@ -467,9 +397,9 @@ class AIEngine:
 ai = AIEngine()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# WEBSOCKET MANAGER
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+# WEBSOCKET
+# ═══════════════════════════════════════════════════════════════
 
 class WSManager:
     def __init__(self):
@@ -497,20 +427,20 @@ class WSManager:
 ws_mgr = WSManager()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # FASTAPI APP
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("🚀 ERCORS starting...")
+    log.info("Starting ERCORS...")
     init_db()
-    log.info("✅ %d modules loaded", len(MODULES))
+    log.info("%d modules loaded", len(MODULES))
     yield
-    log.info("👋 Shutdown")
+    log.info("Shutdown")
 
 
-app = FastAPI(title="ERCORS API", version="12.0.0", lifespan=lifespan)
+app = FastAPI(title="ERCORS API", version="13.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -520,43 +450,24 @@ app.add_middleware(
 )
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# HEALTH & STATS
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "version": "12.0.0",
-        "modules": len(MODULES),
-        "env": "render" if os.getenv("RENDER") else "local",
-        "time": datetime.utcnow().isoformat(),
-    }
+    return {"status": "ok", "version": "13.0.0", "modules": len(MODULES)}
 
 
 @app.get("/api/stats")
 def stats():
     conn = db()
     try:
-        users = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
-        posts = conn.execute("SELECT COUNT(*) c FROM posts").fetchone()["c"]
-        campaigns = conn.execute("SELECT COUNT(*) c FROM campaigns").fetchone()["c"]
         return {
-            "users": users + 12847,
-            "posts": posts,
-            "campaigns": campaigns,
+            "users": conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"] + 12847,
+            "posts": conn.execute("SELECT COUNT(*) c FROM posts").fetchone()["c"],
+            "campaigns": conn.execute("SELECT COUNT(*) c FROM campaigns").fetchone()["c"],
             "modules": len(MODULES),
-            "bounties_paid": 47830,
-            "bounty_hunters": 1247,
         }
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# AUTH ROUTES
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.post("/api/register")
 def register(
@@ -574,13 +485,12 @@ def register(
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return JSONResponse({"status": "error", "message": "Invalid email"}, status_code=400)
     if len(password) < 6:
-        return JSONResponse({"status": "error", "message": "Password must be 6+ chars"}, status_code=400)
+        return JSONResponse({"status": "error", "message": "Password too short"}, status_code=400)
 
     conn = db()
     try:
         if conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone():
             return JSONResponse({"status": "error", "message": "Email exists"}, status_code=409)
-
         ref = make_ref_code(full_name)
         cur = conn.execute(
             """INSERT INTO users
@@ -592,11 +502,9 @@ def register(
         )
         uid = cur.lastrowid
         conn.commit()
-
         token = make_token(uid)
         user = dict(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
         user.pop("password_hash", None)
-        log.info("New user: %s", email)
         return {"status": "success", "session": token, "user": user}
     finally:
         conn.close()
@@ -609,10 +517,8 @@ def login(email: str = Form(...), password: str = Form(...)):
         row = conn.execute("SELECT * FROM users WHERE email=?", (email.lower().strip(),)).fetchone()
         if not row or not verify_pw(password, row["password_hash"]):
             return JSONResponse({"status": "error", "message": "Invalid credentials"}, status_code=401)
-
         conn.execute("UPDATE users SET last_login=datetime('now') WHERE id=?", (row["id"],))
         conn.commit()
-
         token = make_token(row["id"])
         user = dict(row)
         user.pop("password_hash", None)
@@ -639,10 +545,6 @@ async def me(user: Dict = Depends(require_user)):
     return {"status": "success", "user": user}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# MODULES
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/api/modules")
 def list_modules(category: Optional[str] = None, q: Optional[str] = None):
     items = MODULES
@@ -650,14 +552,8 @@ def list_modules(category: Optional[str] = None, q: Optional[str] = None):
         items = [m for m in items if m["category"].lower() == category.lower()]
     if q:
         ql = q.lower()
-        items = [m for m in items if ql in m["name"].lower() or ql in m["description"].lower()]
+        items = [m for m in items if ql in m["name"].lower()]
     return items
-
-
-@app.get("/api/modules/categories")
-def module_categories():
-    cats = Counter(m["category"] for m in MODULES)
-    return [{"name": k, "count": v} for k, v in cats.items()]
 
 
 @app.get("/api/modules/{mid}")
@@ -673,7 +569,6 @@ async def module_action(mid: str, request: Request):
     m = MODULE_MAP.get(mid)
     if not m:
         raise HTTPException(404, "Module not found")
-
     user = await current_user(request)
     result = {
         "module_id": mid,
@@ -681,9 +576,8 @@ async def module_action(mid: str, request: Request):
         "executed_at": datetime.utcnow().isoformat(),
         "duration_ms": secrets.randbelow(500) + 50,
         "status": "success",
-        "output": f"Module '{m['name']}' executed successfully.",
+        "output": f"Module '{m['name']}' executed.",
     }
-
     if user:
         conn = db()
         try:
@@ -691,13 +585,8 @@ async def module_action(mid: str, request: Request):
             conn.commit()
         finally:
             conn.close()
-
     return {"status": "success", "action_result": result}
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# TALENTS
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/talents")
 def talents(limit: int = 20):
@@ -722,10 +611,6 @@ def talents(limit: int = 20):
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CAMPAIGNS
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/campaigns")
 def list_campaigns():
@@ -762,10 +647,6 @@ async def create_campaign(
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# POSTS
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/api/posts")
 def list_posts(limit: int = 50):
     conn = db()
@@ -781,7 +662,6 @@ async def create_post(request: Request, content: str = Form(...)):
     user = await require_user(request)
     if len(content) > 2000:
         return JSONResponse({"status": "error", "message": "Too long"}, status_code=400)
-
     conn = db()
     try:
         cur = conn.execute(
@@ -811,10 +691,6 @@ def like_post(pid: int):
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# ESCROW
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/escrow")
 async def list_escrow(request: Request):
@@ -846,10 +722,6 @@ async def create_escrow(request: Request, title: str = Form(...), amount: float 
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# LEADERBOARD
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/api/leaderboard")
 def leaderboard():
     conn = db()
@@ -870,17 +742,11 @@ def leaderboard():
                 {"rank": 1, "name": "Shaxzod K.", "referrals": 247, "reward": "$12,350"},
                 {"rank": 2, "name": "Malika A.", "referrals": 189, "reward": "$9,450"},
                 {"rank": 3, "name": "Bobur R.", "referrals": 156, "reward": "$7,800"},
-                {"rank": 4, "name": "Dilnoza M.", "referrals": 134, "reward": "$6,700"},
-                {"rank": 5, "name": "Aziz T.", "referrals": 112, "reward": "$5,600"},
             ]
         return result
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# BADGES & STREAK
-# ═══════════════════════════════════════════════════════════════════════════
 
 BADGE_XP = {"first": 50, "sharer": 100, "inviter": 200, "ai": 500, "vip": 1000, "founder": 5000}
 
@@ -890,14 +756,12 @@ async def claim_badge(request: Request, badge_key: str = Form(...)):
     user = await require_user(request)
     if badge_key not in BADGE_XP:
         return JSONResponse({"status": "error", "message": "Unknown badge"}, status_code=400)
-
     conn = db()
     try:
         try:
             conn.execute("INSERT INTO badges (user_id, badge_key) VALUES (?,?)", (user["id"], badge_key))
         except sqlite3.IntegrityError:
             return {"status": "error", "message": "Already claimed"}
-
         xp_add = BADGE_XP[badge_key]
         conn.execute("UPDATE users SET xp = xp + ? WHERE id=?", (xp_add, user["id"]))
         row = conn.execute("SELECT xp FROM users WHERE id=?", (user["id"],)).fetchone()
@@ -905,7 +769,6 @@ async def claim_badge(request: Request, badge_key: str = Form(...)):
         new_level = 1 + new_xp // 500
         conn.execute("UPDATE users SET level=? WHERE id=?", (new_level, user["id"]))
         conn.commit()
-
         return {"status": "success", "xp_awarded": xp_add, "total_xp": new_xp, "level": new_level}
     finally:
         conn.close()
@@ -921,7 +784,6 @@ async def claim_streak(request: Request):
         today = datetime.utcnow().date().isoformat()
         if row["last_streak"] == today:
             return {"status": "error", "message": "Already claimed today"}
-
         streak = (row["streak_days"] or 0) + 1
         xp_add = 20 + min(streak, 7) * 5
         conn.execute(
@@ -947,10 +809,6 @@ async def share_event(request: Request, platform: str = Form(...)):
     return {"status": "success"}
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# AI CHAT
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.post("/api/v1/ai/chat")
 async def ai_chat(request: Request, message: str = Form(...)):
     user = await current_user(request)
@@ -969,10 +827,6 @@ async def ai_chat(request: Request, message: str = Form(...)):
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# BADGE SVG
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.get("/api/v1/badge/{user_id}.svg")
 def badge_svg(user_id: str):
     name, score = "Guest", 0
@@ -986,7 +840,6 @@ def badge_svg(user_id: str):
             conn.close()
         except Exception:
             pass
-
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120">
   <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
     <stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#7000ff"/>
@@ -996,15 +849,10 @@ def badge_svg(user_id: str):
   <text x="20" y="40" font-family="Arial" font-size="20" font-weight="800" fill="#00f0ff">ERCORS</text>
   <text x="20" y="65" font-family="Arial" font-size="14" fill="#ffffff">{name[:24]}</text>
   <text x="20" y="90" font-family="Arial" font-size="12" fill="#94a3b8">Trust Score: {score}</text>
-  <text x="260" y="40" font-family="Arial" font-size="24">🤖</text>
 </svg>'''
     return Response(content=svg, media_type="image/svg+xml",
                     headers={"Cache-Control": "public, max-age=3600"})
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# HR — CV UPLOAD
-# ═══════════════════════════════════════════════════════════════════════════
 
 def _extract_text(filename: str, data: bytes) -> str:
     name = (filename or "").lower()
@@ -1027,10 +875,8 @@ async def upload_cv(request: Request, file: UploadFile = File(...)):
     data = await file.read()
     if len(data) > MAX_UPLOAD_SIZE:
         return JSONResponse({"status": "error", "message": "File too large"}, status_code=413)
-
     text = _extract_text(file.filename or "", data)
     analysis = ai.analyze_cv(text)
-
     conn = db()
     try:
         campaigns = conn.execute("SELECT * FROM campaigns").fetchall()
@@ -1040,7 +886,6 @@ async def upload_cv(request: Request, file: UploadFile = File(...)):
             req = (c["required_skills"] or "").lower()
             if any(s in req for s in skills_set):
                 matches.append({"id": c["id"], "title": c["title"], "budget": c["budget"]})
-
         conn.execute(
             "UPDATE users SET skills=?, trust_score=? WHERE id=?",
             (", ".join(analysis["skills"][:10]), analysis["trust_score"], user["id"]),
@@ -1048,18 +893,8 @@ async def upload_cv(request: Request, file: UploadFile = File(...)):
         conn.commit()
     finally:
         conn.close()
+    return {"status": "success", "analysis": analysis, "campaigns_matched": len(matches), "matches": matches[:5]}
 
-    return {
-        "status": "success",
-        "analysis": analysis,
-        "campaigns_matched": len(matches),
-        "matches": matches[:5],
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# HR — AUDIO INTERVIEW
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.post("/api/v1/hr/audio/analyze-interview")
 async def analyze_interview(
@@ -1071,26 +906,17 @@ async def analyze_interview(
     data = await file.read()
     if len(data) > MAX_UPLOAD_SIZE:
         return JSONResponse({"status": "error", "message": "File too large"}, status_code=413)
-
     transcript = (
-        f"Simulated {language} interview transcript. "
-        "Candidate shows strong technical expertise, clear communication, "
-        "and problem-solving. 5+ years AI/ML with Python, PyTorch, Kubernetes."
+        f"Simulated {language} interview transcript. Candidate shows strong technical "
+        "expertise, clear communication, problem-solving. 5+ years AI/ML."
     )
     analysis = ai.analyze_interview(transcript, position or "AI Engineer")
-
     return {
-        "status": "success",
-        "transcription": transcript,
-        "analysis": analysis,
-        "campaigns_matched": secrets.randbelow(8) + 3,
+        "status": "success", "transcription": transcript,
+        "analysis": analysis, "campaigns_matched": secrets.randbelow(8) + 3,
         "audio_size": len(data),
     }
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# HARVESTER & NEGOTIATOR
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.post("/api/v1/harvester/start")
 async def start_harvester(
@@ -1116,23 +942,16 @@ async def negotiate(
     m = re.search(r"(\d+)", budget_range)
     base = int(m.group(1)) * 1000 if m else 15000
     final = base + secrets.randbelow(max(base // 3, 1))
-
     return {
         "status": "success",
         "negotiation": {
-            "company": company_name,
-            "developer": developer_name,
-            "budget": final,
-            "deadline": f"{secrets.choice([14, 21, 30, 45])} days",
+            "company": company_name, "developer": developer_name,
+            "budget": final, "deadline": f"{secrets.choice([14, 21, 30, 45])} days",
             "terms": "Milestone escrow, NDA, 10% upfront, 90% on delivery",
             "accepted": True,
         },
     }
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# BOUNTIES
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/v1/bounties")
 def list_bounties():
@@ -1154,41 +973,20 @@ async def claim_bounty(bid: str, request: Request):
             return JSONResponse({"status": "error", "message": "Not found"}, status_code=404)
         if row["claimed_by"]:
             return JSONResponse({"status": "error", "message": "Already claimed"}, status_code=409)
-
         conn.execute("UPDATE bounties SET claimed_by=?, claimed_at=datetime('now') WHERE id=?",
                      (user["id"], bid))
         conn.execute("UPDATE users SET xp = xp + 50 WHERE id=?", (user["id"],))
         conn.commit()
-
-        await ws_mgr.broadcast({
-            "type": "bounty_claimed",
-            "bounty_id": bid,
-            "user_name": user["full_name"],
-            "prize": row["prize"],
-        })
         return {"status": "success", "prize": row["prize"], "message": f"Claimed: {row['title']}"}
     finally:
         conn.close()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# PORTFOLIO / SALARY / SKILL GAP / QUIZ
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.post("/api/v1/portfolio/generate")
-def gen_portfolio(
-    name: str = Form(...),
-    title: str = Form(...),
-    skills: str = Form(...),
-    theme: str = Form("neon"),
-):
-    return {
-        "status": "success",
-        "theme": theme,
-        "name": name,
-        "title": title,
-        "skills": [s.strip() for s in skills.split(",") if s.strip()],
-    }
+def gen_portfolio(name: str = Form(...), title: str = Form(...),
+                  skills: str = Form(...), theme: str = Form("neon")):
+    return {"status": "success", "theme": theme, "name": name, "title": title,
+            "skills": [s.strip() for s in skills.split(",") if s.strip()]}
 
 
 @app.post("/api/v1/salary/estimate")
@@ -1252,47 +1050,26 @@ def mentors():
     ]
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# WEBSOCKET
-# ═══════════════════════════════════════════════════════════════════════════
-
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws_mgr.connect(ws)
     try:
-        await ws.send_json({"type": "welcome", "message": "Connected to ERCORS live feed"})
+        await ws.send_json({"type": "welcome", "message": "Connected to ERCORS"})
         while True:
             msg = await ws.receive_text()
             if msg == "ping":
-                await ws.send_json({"type": "pong", "time": datetime.utcnow().isoformat()})
+                await ws.send_json({"type": "pong"})
     except WebSocketDisconnect:
         ws_mgr.disconnect(ws)
-    except Exception as e:
-        log.warning("WS error: %s", e)
+    except Exception:
         ws_mgr.disconnect(ws)
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# STATIC FILES & SPA FALLBACK
-# ═══════════════════════════════════════════════════════════════════════════
 
 @app.get("/", response_class=HTMLResponse)
 def root():
     if INDEX_HTML.exists():
         return FileResponse(INDEX_HTML)
-    return HTMLResponse("""
-    <!DOCTYPE html>
-    <html><head><title>ERCORS</title>
-    <style>body{font-family:Arial;background:#030712;color:#e5e7eb;padding:3rem;text-align:center}
-    h1{font-size:2.5rem;color:#00f0ff;margin-bottom:1rem}a{color:#00f0ff;margin:0 1rem;text-decoration:none}
-    .c{background:rgba(0,240,255,0.05);border:1px solid rgba(0,240,255,0.2);
-    border-radius:16px;padding:2rem;max-width:600px;margin:2rem auto}</style>
-    </head><body>
-    <h1>🚀 ERCORS Backend is Running</h1>
-    <div class="c"><p>Add <code>index.html</code> to serve the frontend.</p>
-    <p style="margin-top:1.5rem"><a href="/docs">📚 API Docs</a><a href="/health">💚 Health</a></p></div>
-    </body></html>
-    """)
+    return HTMLResponse("<h1>ERCORS Backend Running ✅</h1><p>Add index.html</p>")
 
 
 @app.get("/{full_path:path}")
@@ -1304,24 +1081,7 @@ def spa_fallback(full_path: str):
     raise HTTPException(404, "Not found")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# ENTRY POINT
-# ═══════════════════════════════════════════════════════════════════════════
-
 if __name__ == "__main__":
     import uvicorn
-    log.info("=" * 60)
-    log.info("ERCORS v12 Backend")
-    log.info("Port: %d", PORT)
-    log.info("DB: %s", DB_PATH)
-    log.info("Modules: %d", len(MODULES))
-    log.info("Env: %s", "RENDER" if os.getenv("RENDER") else "LOCAL")
-    log.info("=" * 60)
-
-    uvicorn.run(
-        "main:app",
-        host=HOST,
-        port=PORT,
-        reload=False,
-        log_level="info",
-    )
+    log.info("ERCORS starting on port %d", PORT)
+    uvicorn.run("main:app", host=HOST, port=PORT, reload=False, log_level="info")
